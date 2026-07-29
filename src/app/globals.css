@@ -46,3 +46,52 @@ button {
 .animate-splash {
   animation: splash 180ms ease-out;
 }
+
+@keyframes alert-in {
+  from {
+    transform: translateY(-0.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes alert-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-0.4rem);
+  }
+  45% {
+    transform: translateX(0.35rem);
+  }
+  70% {
+    transform: translateX(-0.2rem);
+  }
+  85% {
+    transform: translateX(0.1rem);
+  }
+}
+
+.animate-alert {
+  animation: alert-in 220ms ease-out;
+}
+
+/* Al recibir un impacto el aviso entra y además se sacude. */
+.animate-alert-hit {
+  animation:
+    alert-in 200ms ease-out,
+    alert-shake 420ms 170ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash,
+  .animate-alert,
+  .animate-alert-hit {
+    animation: none;
+  }
+}
