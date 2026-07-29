@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Board, { type CellMark } from "@/components/Board";
-import { cellKey, coordLabel, FLEET, type Ship, shipCells, shipKind } from "@/lib/battleship";
+import Board, { type CellMark } from "@/components/battleship/Board";
+import { cellKey, coordLabel, FLEET, type Ship, shipCells, shipKind } from "@/lib/games/battleship/rules";
+import type { BattleshipView } from "@/lib/games/battleship/module";
 import type { PlayerView } from "@/lib/server/games";
 
 type Props = {
+  /** Estado de la sala: de quién es el turno, si acabó la partida. */
   view: PlayerView;
+  /** Estado del juego filtrado para este jugador. */
+  game: BattleshipView;
   onFire: (x: number, y: number) => Promise<void>;
 };
 
@@ -22,27 +26,27 @@ function shipAt(ships: Ship[], x: number, y: number): Ship | undefined {
   return ships.find((s) => shipCells(s).some((c) => cellKey(c.x, c.y) === key));
 }
 
-function opponentMarks(view: PlayerView): Record<string, CellMark> {
+function opponentMarks(game: BattleshipView): Record<string, CellMark> {
   const marks: Record<string, CellMark> = {};
-  for (const shot of view.yourShots) {
+  for (const shot of game.yourShots) {
     marks[cellKey(shot.x, shot.y)] = shot.hit ? "hit" : "miss";
   }
   // Al hundir un barco se revela entero.
-  for (const ship of view.opponentSunk) {
+  for (const ship of game.opponentSunk) {
     for (const c of shipCells(ship)) marks[cellKey(c.x, c.y)] = "sunk";
   }
   return marks;
 }
 
-function ownMarks(view: PlayerView): Record<string, CellMark> {
+function ownMarks(game: BattleshipView): Record<string, CellMark> {
   const marks: Record<string, CellMark> = {};
-  for (const ship of view.yourShips) {
+  for (const ship of game.yourShips) {
     for (const c of shipCells(ship)) marks[cellKey(c.x, c.y)] = "ship";
   }
-  for (const shot of view.shotsAgainstYou) {
+  for (const shot of game.shotsAgainstYou) {
     marks[cellKey(shot.x, shot.y)] = shot.hit ? "hit" : "miss";
   }
-  for (const ship of view.yourShips.filter((s) => view.yourSunk.includes(s.id))) {
+  for (const ship of game.yourShips.filter((s) => game.yourSunk.includes(s.id))) {
     for (const c of shipCells(ship)) marks[cellKey(c.x, c.y)] = "sunk";
   }
   return marks;
@@ -72,11 +76,11 @@ function FleetStatus({ sunkIds, title }: { sunkIds: string[]; title: string }) {
   );
 }
 
-export default function Play({ view, onFire }: Props) {
+export default function Play({ view, game, onFire }: Props) {
   const [target, setTarget] = useState<{ x: number; y: number } | null>(null);
   const [firing, setFiring] = useState(false);
 
-  const marks = opponentMarks(view);
+  const marks = opponentMarks(game);
   const alreadyShot = (x: number, y: number) => cellKey(x, y) in marks;
 
   const shoot = async () => {
@@ -90,18 +94,18 @@ export default function Play({ view, onFire }: Props) {
     }
   };
 
-  const lastShot = view.yourShots.at(-1);
+  const lastShot = game.yourShots.at(-1);
 
   // Último ataque recibido. El tablero propio queda fuera de pantalla en el
   // móvil, así que el aviso sube aquí arriba en vez de quedarse abajo.
-  const lastAgainstYou = view.shotsAgainstYou.at(-1);
+  const lastAgainstYou = game.shotsAgainstYou.at(-1);
   const shipStruck = lastAgainstYou?.hit
-    ? shipAt(view.yourShips, lastAgainstYou.x, lastAgainstYou.y)
+    ? shipAt(game.yourShips, lastAgainstYou.x, lastAgainstYou.y)
     : undefined;
   // Si el barco alcanzado ya está hundido, fue este disparo el que lo remató.
-  const sankYourShip = shipStruck ? view.yourSunk.includes(shipStruck.id) : false;
+  const sankYourShip = shipStruck ? game.yourSunk.includes(shipStruck.id) : false;
 
-  const receivedCount = view.shotsAgainstYou.length;
+  const receivedCount = game.shotsAgainstYou.length;
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -164,7 +168,7 @@ export default function Play({ view, onFire }: Props) {
           disabled={!view.yourTurn || firing}
           onCell={(x, y) => !alreadyShot(x, y) && setTarget({ x, y })}
         />
-        <FleetStatus sunkIds={view.opponentSunk.map((s) => s.id)} title="Su flota:" />
+        <FleetStatus sunkIds={game.opponentSunk.map((s) => s.id)} title="Su flota:" />
         <button
           type="button"
           onClick={shoot}
@@ -185,9 +189,9 @@ export default function Play({ view, onFire }: Props) {
         <h2 className="text-sm font-semibold text-foam/70">Tu flota</h2>
         {/* Más pequeño que el rival: sólo hay que consultarlo, no se toca. */}
         <div className="mx-auto w-4/5">
-          <Board marks={ownMarks(view)} compact />
+          <Board marks={ownMarks(game)} compact />
         </div>
-        <FleetStatus sunkIds={view.yourSunk} title="Tus barcos:" />
+        <FleetStatus sunkIds={game.yourSunk} title="Tus barcos:" />
       </section>
     </div>
   );

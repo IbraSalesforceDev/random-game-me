@@ -1,24 +1,24 @@
-import {
-  FLEET,
-  resolveShots,
-  type ResolvedShot,
-  type Ship,
-  type Shot,
-  sunkShips,
-} from "@/lib/battleship";
+import { gameById } from "@/lib/games";
+import { other, type Side } from "@/lib/games/types";
 
-export type Side = "host" | "guest";
-export type GameStatus = "waiting" | "placing" | "playing" | "finished";
+export { other };
+export type { Side };
+
+/**
+ * Estados de la sala. Todo lo que sea propio de un juego —colocar la flota,
+ * por ejemplo— vive dentro de `state`, no aquí.
+ */
+export type GameStatus = "waiting" | "choosing" | "playing" | "finished";
 
 export type GameRow = {
   code: string;
   status: GameStatus;
   host_token: string;
   guest_token: string | null;
-  host_ships: Ship[] | null;
-  guest_ships: Ship[] | null;
-  host_shots: Shot[];
-  guest_shots: Shot[];
+  /** Juego elegido, o null mientras deciden. */
+  game: string | null;
+  /** Estado interno del juego, con la forma que decida su módulo. */
+  state: unknown;
   turn: Side | null;
   winner: Side | null;
   /** Contador optimista: evita que dos escrituras simultáneas se pisen. */
@@ -27,26 +27,18 @@ export type GameRow = {
   updated_at: string;
 };
 
-/** Vista de la partida que sí puede ver un jugador: nunca incluye la flota rival. */
+/** Lo que se le manda a un jugador. Nunca incluye datos ocultos del rival. */
 export type PlayerView = {
   code: string;
   status: GameStatus;
   you: Side;
   yourTurn: boolean;
-  winner: "you" | "opponent" | null;
+  outcome: "won" | "lost" | "draw" | null;
   opponentJoined: boolean;
-  yourFleetReady: boolean;
-  opponentFleetReady: boolean;
-  /** Tu flota tal y como la colocaste. */
-  yourShips: Ship[];
-  /** Disparos del rival contra tu tablero. */
-  shotsAgainstYou: ResolvedShot[];
-  /** Tus disparos contra el tablero rival. */
-  yourShots: ResolvedShot[];
-  /** Barcos tuyos hundidos (ids). */
-  yourSunk: string[];
-  /** Barcos rivales hundidos: se revela su posición al hundirse. */
-  opponentSunk: Ship[];
+  game: string | null;
+  gameName: string | null;
+  /** Estado del juego filtrado por su módulo, o null si aún no hay juego. */
+  gameView: unknown;
   updatedAt: string;
 };
 
@@ -69,48 +61,32 @@ export function normalizeCode(code: string): string {
 }
 
 /** Devuelve de qué lado juega el token, o null si no pertenece a la partida. */
-export function sideForToken(game: GameRow, token: string | null): Side | null {
+export function sideForToken(row: GameRow, token: string | null): Side | null {
   if (!token) return null;
-  if (token === game.host_token) return "host";
-  if (game.guest_token && token === game.guest_token) return "guest";
+  if (token === row.host_token) return "host";
+  if (row.guest_token && token === row.guest_token) return "guest";
   return null;
 }
 
-export const other = (side: Side): Side => (side === "host" ? "guest" : "host");
-
-export function shipsOf(game: GameRow, side: Side): Ship[] | null {
-  return side === "host" ? game.host_ships : game.guest_ships;
+function outcomeFor(row: GameRow, side: Side): PlayerView["outcome"] {
+  if (row.status !== "finished") return null;
+  if (!row.winner) return "draw";
+  return row.winner === side ? "won" : "lost";
 }
 
-export function shotsOf(game: GameRow, side: Side): Shot[] {
-  return (side === "host" ? game.host_shots : game.guest_shots) ?? [];
-}
-
-export function toPlayerView(game: GameRow, side: Side): PlayerView {
-  const rival = other(side);
-  const yourShips = shipsOf(game, side) ?? [];
-  const opponentShips = shipsOf(game, rival) ?? [];
-
-  // Tus disparos van contra la flota rival y viceversa.
-  const yourShots = resolveShots(opponentShips, shotsOf(game, side));
-  const shotsAgainstYou = resolveShots(yourShips, shotsOf(game, rival));
+export function toPlayerView(row: GameRow, side: Side): PlayerView {
+  const module = gameById(row.game);
 
   return {
-    code: game.code,
-    status: game.status,
+    code: row.code,
+    status: row.status,
     you: side,
-    yourTurn: game.status === "playing" && game.turn === side,
-    winner: game.winner ? (game.winner === side ? "you" : "opponent") : null,
-    opponentJoined: Boolean(game.guest_token),
-    yourFleetReady: Boolean(shipsOf(game, side)),
-    opponentFleetReady: Boolean(shipsOf(game, rival)),
-    yourShips,
-    shotsAgainstYou,
-    yourShots,
-    yourSunk: sunkShips(yourShips, shotsOf(game, rival)).map((s) => s.id),
-    opponentSunk: sunkShips(opponentShips, shotsOf(game, side)),
-    updatedAt: game.updated_at,
+    yourTurn: row.status === "playing" && row.turn === side,
+    outcome: outcomeFor(row, side),
+    opponentJoined: Boolean(row.guest_token),
+    game: row.game,
+    gameName: module?.name ?? null,
+    gameView: module && row.state ? module.toView(row.state, side) : null,
+    updatedAt: row.updated_at,
   };
 }
-
-export const FLEET_SIZE = FLEET.length;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Board, { type CellMark } from "@/components/Board";
+import Board, { type CellMark } from "@/components/battleship/Board";
 import {
   canPlace,
   cellKey,
@@ -10,7 +10,7 @@ import {
   type Ship,
   shipCells,
   shipFootprint,
-} from "@/lib/battleship";
+} from "@/lib/games/battleship/rules";
 
 type Props = {
   onConfirm: (ships: Ship[]) => Promise<void>;

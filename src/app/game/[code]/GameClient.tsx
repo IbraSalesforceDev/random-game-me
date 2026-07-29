@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import Placement from "@/components/Placement";
-import Play from "@/components/Play";
-import type { Ship } from "@/lib/battleship";
-import { fire, requestRematch, submitShips } from "@/lib/client/session";
+import Placement from "@/components/battleship/Placement";
+import Play from "@/components/battleship/Play";
+import Connect4 from "@/components/connect4/Connect4";
+import GamePicker from "@/components/GamePicker";
+import { chooseGame, requestRematch, sendMove } from "@/lib/client/session";
 import { useGame } from "@/lib/client/useGame";
+import type { BattleshipView } from "@/lib/games/battleship/module";
+import type { Ship } from "@/lib/games/battleship/rules";
+import type { Connect4View } from "@/lib/games/connect4/module";
+import type { PlayerView } from "@/lib/server/games";
 
 function ShareCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
   const share = async () => {
     const url = window.location.href;
-    const text = `¡Juega a hundir la flota conmigo! Código: ${code}`;
+    const text = `¡Échame un pique! Código: ${code}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Hundir la Flota", text, url });
+        await navigator.share({ title: "Piques", text, url });
         return;
       } catch {
         // El usuario canceló el diálogo: caemos al portapapeles.
@@ -53,6 +58,39 @@ function Waiting({ message }: { message: string }) {
   );
 }
 
+/** Reparte la partida en curso al componente del juego elegido. */
+function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Promise<void> }) {
+  if (view.game === "battleship") {
+    const game = view.gameView as BattleshipView;
+    if (game.phase === "placing") {
+      return game.yourFleetReady ? (
+        <Waiting message="Flota lista. Esperando a que el rival coloque la suya…" />
+      ) : (
+        <Placement onConfirm={(ships: Ship[]) => move({ type: "ships", ships })} />
+      );
+    }
+    return <Play view={view} game={game} onFire={(x, y) => move({ type: "fire", x, y })} />;
+  }
+
+  if (view.game === "connect4") {
+    return (
+      <Connect4
+        view={view}
+        game={view.gameView as Connect4View}
+        onDrop={(col) => move({ type: "drop", col })}
+      />
+    );
+  }
+
+  return <Waiting message="Preparando la partida…" />;
+}
+
+const OUTCOME = {
+  won: { emoji: "🏆", title: "¡Has ganado!", box: "bg-emerald-400 text-sea-950" },
+  lost: { emoji: "💥", title: "Has perdido", box: "bg-sunk text-foam" },
+  draw: { emoji: "🤝", title: "Empate", box: "bg-sea-700 text-foam" },
+} as const;
+
 export default function GameClient({ code }: { code: string }) {
   const { view, setView, error, setError, ready, refresh } = useGame(code);
   const [notice, setNotice] = useState<string | null>(null);
@@ -87,18 +125,20 @@ export default function GameClient({ code }: { code: string }) {
   if (!ready || !view) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center p-6">
-        <Waiting message="Entrando en la partida…" />
+        <Waiting message="Entrando en la sala…" />
       </main>
     );
   }
 
+  const move = (m: unknown) => guard(async () => setView(await sendMove(code, m)));
+  const outcome = view.outcome ? OUTCOME[view.outcome] : null;
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 p-4">
-      <header className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-foam/50">
-          ← Salir
-        </Link>
-        <span className="font-mono text-sm tracking-widest text-foam/50">SALA {view.code}</span>
+      <header className="flex items-center justify-between gap-2 text-sm text-foam/50">
+        <Link href="/">← Salir</Link>
+        <span className="truncate">{view.gameName}</span>
+        <span className="font-mono tracking-widest">SALA {view.code}</span>
       </header>
 
       {notice && (
@@ -109,46 +149,18 @@ export default function GameClient({ code }: { code: string }) {
 
       {view.status === "waiting" && <ShareCode code={view.code} />}
 
-      {view.status === "placing" &&
-        (view.yourFleetReady ? (
-          <Waiting message="Flota lista. Esperando a que el rival coloque la suya…" />
-        ) : (
-          <Placement
-            onConfirm={(ships: Ship[]) =>
-              guard(async () => setView(await submitShips(code, ships)))
-            }
-          />
-        ))}
-
-      {view.status === "playing" && (
-        <Play
-          view={view}
-          onFire={(x, y) =>
-            guard(async () => {
-              const { view: next } = await fire(code, x, y);
-              setView(next);
-            })
-          }
-        />
+      {view.status === "choosing" && (
+        <GamePicker onChoose={(id) => guard(async () => setView(await chooseGame(code, id)))} />
       )}
 
-      {view.status === "finished" && (
+      {view.status === "playing" && <ActiveGame view={view} move={move} />}
+
+      {view.status === "finished" && outcome && (
         <div className="flex flex-col gap-5">
-          <div
-            className={[
-              "rounded-2xl px-6 py-8 text-center",
-              view.winner === "you" ? "bg-emerald-400 text-sea-950" : "bg-sunk text-foam",
-            ].join(" ")}
-          >
-            <p className="text-5xl">{view.winner === "you" ? "🏆" : "💥"}</p>
-            <h1 className="mt-2 text-3xl font-black">
-              {view.winner === "you" ? "¡Has ganado!" : "Has perdido"}
-            </h1>
-            <p className="mt-1 opacity-80">
-              {view.winner === "you"
-                ? "Has hundido toda su flota."
-                : "Tu flota ha sido hundida."}
-            </p>
+          <div className={`rounded-2xl px-6 py-8 text-center ${outcome.box}`}>
+            <p className="text-5xl">{outcome.emoji}</p>
+            <h1 className="mt-2 text-3xl font-black">{outcome.title}</h1>
+            <p className="mt-1 opacity-80">{view.gameName}</p>
           </div>
 
           <button
@@ -156,7 +168,7 @@ export default function GameClient({ code }: { code: string }) {
             onClick={() => guard(async () => setView(await requestRematch(code)))}
             className="rounded-xl bg-emerald-400 px-4 py-4 text-lg font-bold text-sea-950 active:brightness-110"
           >
-            Revancha
+            Otra partida
           </button>
           <Link
             href="/"

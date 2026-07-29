@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hundir la Flota",
-  description: "Juega a hundir la flota con un amigo, cada uno desde su móvil.",
+  title: "Piques",
+  description: "Juegos para dos, cada uno desde su móvil. Sin registro ni instalación.",
 };
 
 export const viewport: Viewport = {

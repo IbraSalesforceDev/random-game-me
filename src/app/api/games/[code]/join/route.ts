@@ -40,7 +40,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   // El filtro por guest_token nulo evita que dos personas entren a la vez.
   const { data: updated, error: joinError } = await db
     .from("games")
-    .update({ guest_token: guestToken, status: "placing", updated_at: new Date().toISOString() })
+    .update({ guest_token: guestToken, status: "choosing", updated_at: new Date().toISOString() })
     .eq("code", code)
     .is("guest_token", null)
     .select("*")

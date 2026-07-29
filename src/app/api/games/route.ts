@@ -15,8 +15,6 @@ export async function POST() {
       code,
       status: "waiting",
       host_token: token,
-      host_shots: [],
-      guest_shots: [],
     });
 
     if (!error) return NextResponse.json({ code, token });

@@ -33,9 +33,9 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-10 p-6">
       <header className="text-center">
-        <p className="text-6xl">🚢</p>
-        <h1 className="mt-3 text-4xl font-black tracking-tight">Hundir la Flota</h1>
-        <p className="mt-2 text-foam/60">Dos jugadores, dos móviles, una batalla.</p>
+        <p className="text-6xl">⚔️</p>
+        <h1 className="mt-3 text-4xl font-black tracking-tight">Piques</h1>
+        <p className="mt-2 text-foam/60">Juegos para dos, cada uno en su móvil.</p>
       </header>
 
       {error && (
@@ -82,7 +82,7 @@ export default function Home() {
       </div>
 
       <p className="text-center text-xs text-foam/40">
-        Cada acierto te da otro disparo. Gana quien hunda los 5 barcos primero.
+        Crea una sala, comparte el código y elegís a qué jugar.
       </p>
     </main>
   );

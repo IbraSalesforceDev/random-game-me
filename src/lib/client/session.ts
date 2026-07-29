@@ -54,11 +54,12 @@ async function post(code: string, path: string, payload: Record<string, unknown>
   );
 }
 
-export const submitShips = (code: string, ships: unknown) =>
-  post(code, "ships", { ships }).then((b) => b.view as PlayerView);
+export const chooseGame = (code: string, game: string) =>
+  post(code, "choose", { game }).then((b) => b.view as PlayerView);
 
-export const fire = (code: string, x: number, y: number) =>
-  post(code, "fire", { x, y }).then((b) => b as { hit: boolean; view: PlayerView });
+/** Envía un movimiento. Su forma la define cada juego. */
+export const sendMove = (code: string, move: unknown) =>
+  post(code, "move", { move }).then((b) => b.view as PlayerView);
 
 export const requestRematch = (code: string) =>
   post(code, "rematch").then((b) => b.view as PlayerView);
