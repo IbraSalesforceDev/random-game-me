@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sea-950: #04121f;
+  --color-sea-900: #072235;
+  --color-sea-800: #0b3350;
+  --color-sea-700: #10476d;
+  --color-sea-500: #1f7fb8;
+  --color-foam: #e6f4ff;
+  --color-hit: #ef4444;
+  --color-sunk: #7f1d1d;
+  --color-miss: #64748b;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--color-sea-800) 0%, var(--color-sea-950) 70%);
+  color: var(--color-foam);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Evita el zoom por doble toque y el rebote al disparar rápido en el móvil. */
+  touch-action: manipulation;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+@keyframes splash {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-splash {
+  animation: splash 180ms ease-out;
+}
