@@ -6,11 +6,13 @@ import Placement from "@/components/battleship/Placement";
 import Play from "@/components/battleship/Play";
 import Connect4 from "@/components/connect4/Connect4";
 import GamePicker from "@/components/GamePicker";
+import TicTacToe from "@/components/tictactoe/TicTacToe";
 import { chooseGame, requestRematch, sendMove } from "@/lib/client/session";
 import { useGame } from "@/lib/client/useGame";
 import type { BattleshipView } from "@/lib/games/battleship/module";
 import type { Ship } from "@/lib/games/battleship/rules";
 import type { Connect4View } from "@/lib/games/connect4/module";
+import type { TicTacToeView } from "@/lib/games/tictactoe/module";
 import type { PlayerView } from "@/lib/server/games";
 
 function ShareCode({ code }: { code: string }) {
@@ -78,6 +80,16 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
         view={view}
         game={view.gameView as Connect4View}
         onDrop={(col) => move({ type: "drop", col })}
+      />
+    );
+  }
+
+  if (view.game === "tictactoe") {
+    return (
+      <TicTacToe
+        view={view}
+        game={view.gameView as TicTacToeView}
+        onMark={(cell) => move({ type: "mark", cell })}
       />
     );
   }
@@ -163,18 +175,31 @@ export default function GameClient({ code }: { code: string }) {
             <p className="mt-1 opacity-80">{view.gameName}</p>
           </div>
 
+          {/* Las dos primeras se quedan en la sala; salir se separa y se avisa. */}
+          <button
+            type="button"
+            onClick={() => guard(async () => setView(await requestRematch(code, true)))}
+            className="rounded-xl bg-emerald-400 px-4 py-4 text-lg font-bold text-sea-950 active:brightness-110"
+          >
+            Revancha
+            <span className="block text-sm font-medium opacity-70">
+              Otra de {view.gameName?.toLowerCase()}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => guard(async () => setView(await requestRematch(code)))}
-            className="rounded-xl bg-emerald-400 px-4 py-4 text-lg font-bold text-sea-950 active:brightness-110"
+            className="rounded-xl bg-sea-700 px-4 py-4 text-lg font-bold ring-1 ring-sea-500/50 active:brightness-110"
           >
-            Otra partida
+            Cambiar de juego
+            <span className="block text-sm font-medium opacity-70">Volvéis a elegir</span>
           </button>
+
           <Link
             href="/"
-            className="rounded-xl bg-sea-800 px-4 py-3 text-center font-semibold ring-1 ring-sea-700"
+            className="mt-2 text-center text-sm text-foam/45 underline decoration-foam/20 underline-offset-4"
           >
-            Volver al inicio
+            Salir de la sala {view.code}
           </Link>
         </div>
       )}

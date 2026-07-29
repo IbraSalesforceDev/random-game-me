@@ -4,7 +4,7 @@ Juegos para dos personas, cada una desde su móvil. Uno crea la sala, comparte u
 código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
 registro ni instalación.
 
-Ahora mismo hay **hundir la flota** y **conecta 4**.
+Ahora mismo hay **tres en raya**, **conecta 4** y **hundir la flota**.
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
@@ -17,13 +17,16 @@ Ahora mismo hay **hundir la flota** y **conecta 4**.
   cambia la partida y el cliente recarga su estado. Como red de seguridad hay un
   sondeo cada 3 s, en pausa cuando la pestaña está en segundo plano.
 - **Un juego por partida.** Cuando los dos están dentro aparece el selector:
-  elige cualquiera de los dos y empieza al instante para ambos. La revancha
-  vuelve al selector, así que se puede cambiar de juego sin salir de la sala.
+  elige cualquiera y empieza al instante para ambos. Al acabar se puede repetir
+  el mismo juego, cambiar a otro, o salir — las dos primeras se quedan en la
+  sala.
+- **Tres en raya.** Tablero de 3×3. Tres seguidas y ganas; si se llena sin
+  línea, empate.
+- **Conecta 4.** Tablero de 7×6. Alinea cuatro fichas en horizontal, vertical o
+  diagonal. Si se llena sin línea, empate.
 - **Hundir la flota.** Flota clásica de 5 barcos (17 casillas). No pueden
   tocarse entre sí, ni siquiera en diagonal. Acertar da otro disparo, fallar
   cede el turno.
-- **Conecta 4.** Tablero de 7×6. Alinea cuatro fichas en horizontal, vertical o
-  diagonal. Si se llena sin línea, empate.
 
 ### Por qué no hay WebSockets propios
 
@@ -113,12 +116,14 @@ src/
     GamePicker.tsx              selector de juego
     battleship/                 tablero, colocación y partida
     connect4/                   tablero de fichas
+    tictactoe/                  tablero de 3×3
   lib/
     games/
       types.ts                  contrato que implementa cada juego
       index.ts                  registro de juegos disponibles
-      battleship/               reglas y módulo
+      tictactoe/                reglas y módulo
       connect4/                 reglas y módulo
+      battleship/               reglas y módulo
     client/                     llamadas a la API y sincronización
     server/                     acceso a la base de datos y estado de la sala
 supabase/migrations/            esquema SQL
