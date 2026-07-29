@@ -58,7 +58,9 @@ export function validateFleet(ships: unknown): ships is Ship[] {
   if (!Array.isArray(ships) || ships.length !== FLEET.length) return false;
 
   const seen = new Set<string>();
-  const occupied = new Set<string>();
+  // Casilla ocupada -> barco que la ocupa, para distinguir «me toco a mí mismo»
+  // de «toco a otro barco» al mirar las casillas vecinas.
+  const occupied = new Map<string, string>();
 
   for (const raw of ships) {
     if (!raw || typeof raw !== "object") return false;
@@ -80,19 +82,59 @@ export function validateFleet(ships: unknown): ships is Ship[] {
       if (!inBounds(cell)) return false;
       const key = cellKey(cell.x, cell.y);
       if (occupied.has(key)) return false;
-      occupied.add(key);
+      occupied.set(key, ship.id);
     }
   }
 
-  return seen.size === FLEET.length;
+  if (seen.size !== FLEET.length) return false;
+
+  // Regla clásica: entre dos barcos siempre hay agua, ni siquiera pueden
+  // tocarse por las esquinas.
+  for (const [key, id] of occupied) {
+    const [x, y] = key.split(",").map(Number);
+    for (const neighbour of surrounding(x, y)) {
+      const other = occupied.get(neighbour);
+      if (other && other !== id) return false;
+    }
+  }
+
+  return true;
 }
 
-/** Comprueba si un único barco cabe en el tablero sin chocar con `others`. */
+/** Las ocho casillas que rodean a una, diagonales incluidas. */
+function surrounding(x: number, y: number): string[] {
+  const keys: string[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx !== 0 || dy !== 0) keys.push(cellKey(x + dx, y + dy));
+    }
+  }
+  return keys;
+}
+
+/**
+ * Casillas de un barco más el anillo de agua que debe rodearlo. Ningún otro
+ * barco puede ocupar ninguna de ellas.
+ */
+export function shipFootprint(ship: Ship): string[] {
+  const keys = new Set<string>();
+  for (const c of shipCells(ship)) {
+    keys.add(cellKey(c.x, c.y));
+    for (const n of surrounding(c.x, c.y)) keys.add(n);
+  }
+  return [...keys];
+}
+
+/**
+ * Comprueba si un único barco cabe en el tablero sin chocar con `others` ni
+ * quedar pegado a ellos. La adyacencia es simétrica, así que basta con mirar
+ * si alguna casilla propia cae dentro del anillo de otro barco.
+ */
 export function canPlace(ship: Ship, others: Ship[]): boolean {
-  const occupied = new Set(
-    others.filter((o) => o.id !== ship.id).flatMap(shipCells).map((c) => cellKey(c.x, c.y)),
+  const blocked = new Set(
+    others.filter((o) => o.id !== ship.id).flatMap(shipFootprint),
   );
-  return shipCells(ship).every((c) => inBounds(c) && !occupied.has(cellKey(c.x, c.y)));
+  return shipCells(ship).every((c) => inBounds(c) && !blocked.has(cellKey(c.x, c.y)));
 }
 
 /** Genera una flota completa colocada al azar. */

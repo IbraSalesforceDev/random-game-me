@@ -13,8 +13,10 @@ partida, comparte un código de 4 letras y el otro entra. Sin registro ni instal
 - **Sincronización.** El servidor emite un aviso por Supabase Realtime cada vez que
   cambia la partida y el cliente recarga su estado. Como red de seguridad hay un
   sondeo cada 3 s, en pausa cuando la pestaña está en segundo plano.
-- **Reglas.** Flota clásica de 5 barcos (17 casillas). Acertar da otro disparo,
-  fallar cede el turno. Gana quien hunda los 5 barcos rivales.
+- **Reglas.** Flota clásica de 5 barcos (17 casillas). Los barcos no pueden
+  tocarse entre sí, ni siquiera en diagonal: siempre hay al menos una casilla de
+  agua alrededor de cada uno. Acertar da otro disparo, fallar cede el turno.
+  Gana quien hunda los 5 barcos rivales.
 
 ### Por qué no hay WebSockets propios
 
