@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { gameById, isGameId } from "@/lib/games";
 import { type GameRow, toPlayerView } from "@/lib/server/games";
 import { isResponse, loadGameForToken } from "@/lib/server/load";
 import { broadcastGameUpdate, supabaseAdmin } from "@/lib/server/supabase";
 
 export const dynamic = "force-dynamic";
 
-/** Revancha: mismos jugadores y mismo código, tableros a cero. */
+/** Elige a qué se juega. Vale cualquiera de los dos: el primero que toque. */
 export async function POST(request: Request, ctx: { params: Promise<{ code: string }> }) {
   const { code } = await ctx.params;
   const body = await request.json().catch(() => ({}));
@@ -13,41 +14,43 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
 
   const loaded = await loadGameForToken(code, token);
   if (isResponse(loaded)) return loaded;
-  const { game, side } = loaded;
+  const { game: row, side } = loaded;
 
-  // Si el rival ya pulsó revancha, la partida ya está reiniciada: no es un error.
-  if (game.status === "choosing") {
-    return NextResponse.json({ view: toPlayerView(game, side) });
+  if (row.status !== "choosing") {
+    return NextResponse.json({ error: "Ahora no toca elegir juego" }, { status: 409 });
   }
-  if (game.status !== "finished") {
-    return NextResponse.json({ error: "La partida aún no ha terminado" }, { status: 409 });
+  if (!isGameId(body?.game)) {
+    return NextResponse.json({ error: "Ese juego no existe" }, { status: 400 });
   }
 
+  const module = gameById(body.game)!;
+
+  // El filtro por `version` resuelve el empate si los dos eligen a la vez:
+  // gana quien llegue primero y el otro recibe la partida ya empezada.
   const { data, error } = await supabaseAdmin()
     .from("games")
     .update({
-      // Se vuelve al selector para poder cambiar de juego sin salir de la sala.
-      status: "choosing",
-      game: null,
-      state: null,
-      turn: null,
+      game: module.id,
+      state: module.createState(),
+      turn: module.initialTurn(),
+      status: "playing",
       winner: null,
-      version: game.version + 1,
+      version: row.version + 1,
       updated_at: new Date().toISOString(),
     })
-    .eq("code", game.code)
-    .eq("version", game.version)
+    .eq("code", row.code)
+    .eq("version", row.version)
     .select("*")
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: "No se pudo reiniciar" }, { status: 500 });
-  // Sin fila: el rival ya pidió la revancha, así que el estado ya está reiniciado.
+  if (error) return NextResponse.json({ error: "No se pudo elegir el juego" }, { status: 500 });
+
   if (!data) {
     const retry = await loadGameForToken(code, token);
     if (isResponse(retry)) return retry;
     return NextResponse.json({ view: toPlayerView(retry.game, retry.side) });
   }
 
-  await broadcastGameUpdate(game.code);
+  await broadcastGameUpdate(row.code);
   return NextResponse.json({ view: toPlayerView(data as GameRow, side) });
 }

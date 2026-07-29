@@ -1,7 +1,10 @@
-# 🚢 Hundir la Flota
+# ⚔️ Piques
 
-Juego de hundir la flota para dos personas, cada una desde su móvil. Uno crea la
-partida, comparte un código de 4 letras y el otro entra. Sin registro ni instalación.
+Juegos para dos personas, cada una desde su móvil. Uno crea la sala, comparte un
+código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
+registro ni instalación.
+
+Ahora mismo hay **hundir la flota** y **conecta 4**.
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
@@ -13,10 +16,14 @@ partida, comparte un código de 4 letras y el otro entra. Sin registro ni instal
 - **Sincronización.** El servidor emite un aviso por Supabase Realtime cada vez que
   cambia la partida y el cliente recarga su estado. Como red de seguridad hay un
   sondeo cada 3 s, en pausa cuando la pestaña está en segundo plano.
-- **Reglas.** Flota clásica de 5 barcos (17 casillas). Los barcos no pueden
-  tocarse entre sí, ni siquiera en diagonal: siempre hay al menos una casilla de
-  agua alrededor de cada uno. Acertar da otro disparo, fallar cede el turno.
-  Gana quien hunda los 5 barcos rivales.
+- **Un juego por partida.** Cuando los dos están dentro aparece el selector:
+  elige cualquiera de los dos y empieza al instante para ambos. La revancha
+  vuelve al selector, así que se puede cambiar de juego sin salir de la sala.
+- **Hundir la flota.** Flota clásica de 5 barcos (17 casillas). No pueden
+  tocarse entre sí, ni siquiera en diagonal. Acertar da otro disparo, fallar
+  cede el turno.
+- **Conecta 4.** Tablero de 7×6. Alinea cuatro fichas en horizontal, vertical o
+  diagonal. Si se llena sin línea, empate.
 
 ### Por qué no hay WebSockets propios
 
@@ -25,13 +32,32 @@ mantener una conexión abierta. Supabase Realtime pone esa conexión persistente
 Vercel se queda con lo que hace bien (el frontend y la API). Las escrituras usan
 un contador `version` para que dos acciones simultáneas no se pisen.
 
+### Añadir un juego nuevo
+
+La sala no sabe a qué se juega. Guarda `game` (qué juego) y `state` (un jsonb
+cuya forma decide cada juego), y delega las reglas en un módulo que implementa
+el contrato de [`src/lib/games/types.ts`](src/lib/games/types.ts):
+
+- `createState()` — la posición inicial
+- `initialTurn()` — quién abre, o `null` si hay una fase sin turnos
+- `applyMove(state, side, move)` — valida y aplica, devolviendo turno y ganador
+- `toView(state, side)` — qué puede ver cada jugador
+
+Escribes el módulo, lo añades al registro de [`src/lib/games/index.ts`](src/lib/games/index.ts)
+y le pones interfaz. Salas, turnos, Realtime, revancha y reconexión ya funcionan.
+
+Las fases propias de un juego van dentro de `state`, no en el estado de la sala:
+colocar la flota es una fase del hundir la flota, y por eso la sala sólo conoce
+`waiting`, `choosing`, `playing` y `finished`.
+
 ### Nadie puede ver tu flota
 
 La tabla `games` tiene RLS activo **y ninguna policy**, así que la clave anónima del
 navegador no puede leerla: no sirve de nada abrir las herramientas de desarrollador.
 Todo el acceso pasa por las rutas de API del servidor, que usan la `service_role` key
-y devuelven a cada jugador sólo lo que le corresponde — tu flota, tus disparos, y
-del rival únicamente los barcos que ya has hundido.
+y llaman al `toView` del juego, que decide qué ve cada jugador. En el hundir la
+flota eso significa tu flota, tus disparos y del rival sólo los barcos ya
+hundidos; en el conecta 4 no hay nada que ocultar y los dos ven lo mismo.
 
 ## Puesta en marcha
 
@@ -62,7 +88,7 @@ cp .env.example .env.local   # y rellena las tres variables
 npm run dev
 ```
 
-Para probar los dos jugadores en el mismo ordenador, abre la segunda pestaña en
+Para probar a los dos jugadores en el mismo ordenador, abre la segunda pestaña en
 una ventana de incógnito: los tokens viven en el `localStorage` del navegador y si
 no, ambas pestañas jugarían como el mismo jugador.
 
@@ -81,15 +107,19 @@ desplegar. No hace falta más configuración.
 src/
   app/
     page.tsx                    portada: crear o unirse
-    game/[code]/                pantalla de partida
-    api/games/                  crear, unirse, colocar, disparar, estado, revancha
+    game/[code]/                sala: selector, partida y resultado
+    api/games/                  crear, unirse, elegir, mover, estado, revancha
   components/
-    Board.tsx                   tablero 10×10 reutilizable
-    Placement.tsx               colocación de la flota
-    Play.tsx                    partida en curso
+    GamePicker.tsx              selector de juego
+    battleship/                 tablero, colocación y partida
+    connect4/                   tablero de fichas
   lib/
-    battleship.ts               reglas del juego (sin dependencias)
+    games/
+      types.ts                  contrato que implementa cada juego
+      index.ts                  registro de juegos disponibles
+      battleship/               reglas y módulo
+      connect4/                 reglas y módulo
     client/                     llamadas a la API y sincronización
-    server/                     acceso a la base de datos y filtrado del estado
+    server/                     acceso a la base de datos y estado de la sala
 supabase/migrations/            esquema SQL
 ```

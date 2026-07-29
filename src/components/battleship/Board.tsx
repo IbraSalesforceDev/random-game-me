@@ -1,6 +1,6 @@
 "use client";
 
-import { BOARD_SIZE, cellKey, COLUMN_LABELS } from "@/lib/battleship";
+import { BOARD_SIZE, cellKey, COLUMN_LABELS } from "@/lib/games/battleship/rules";
 
 export type CellMark =
   | "empty"
