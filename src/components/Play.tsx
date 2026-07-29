@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Board, { type CellMark } from "@/components/Board";
-import { cellKey, coordLabel, FLEET, shipCells } from "@/lib/battleship";
+import { cellKey, coordLabel, FLEET, type Ship, shipCells, shipKind } from "@/lib/battleship";
 import type { PlayerView } from "@/lib/server/games";
 
 type Props = {
   view: PlayerView;
   onFire: (x: number, y: number) => Promise<void>;
 };
+
+/** Vibra si el móvil lo permite. En iPhone no existe y no pasa nada. */
+function buzz(pattern: number | number[]) {
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    navigator.vibrate(pattern);
+  }
+}
+
+function shipAt(ships: Ship[], x: number, y: number): Ship | undefined {
+  const key = cellKey(x, y);
+  return ships.find((s) => shipCells(s).some((c) => cellKey(c.x, c.y) === key));
+}
 
 function opponentMarks(view: PlayerView): Record<string, CellMark> {
   const marks: Record<string, CellMark> = {};
@@ -79,7 +91,35 @@ export default function Play({ view, onFire }: Props) {
   };
 
   const lastShot = view.yourShots.at(-1);
+
+  // Último ataque recibido. El tablero propio queda fuera de pantalla en el
+  // móvil, así que el aviso sube aquí arriba en vez de quedarse abajo.
   const lastAgainstYou = view.shotsAgainstYou.at(-1);
+  const shipStruck = lastAgainstYou?.hit
+    ? shipAt(view.yourShips, lastAgainstYou.x, lastAgainstYou.y)
+    : undefined;
+  // Si el barco alcanzado ya está hundido, fue este disparo el que lo remató.
+  const sankYourShip = shipStruck ? view.yourSunk.includes(shipStruck.id) : false;
+
+  const receivedCount = view.shotsAgainstYou.length;
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (lastAgainstYou?.hit) buzz(sankYourShip ? [90, 60, 90, 60, 160] : [70]);
+    // `receivedCount` es la señal de «ha llegado un disparo nuevo».
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receivedCount]);
+
+  // Aviso corto al recuperar el turno, por si dejaste el móvil en la mesa.
+  const hadTurn = useRef(view.yourTurn);
+  useEffect(() => {
+    if (view.yourTurn && !hadTurn.current) buzz(45);
+    hadTurn.current = view.yourTurn;
+  }, [view.yourTurn]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -91,6 +131,30 @@ export default function Play({ view, onFire }: Props) {
       >
         {view.yourTurn ? "Tu turno — ¡dispara!" : "Turno del rival…"}
       </div>
+
+      {lastAgainstYou && (
+        // La `key` cambia con cada disparo recibido, lo que reinicia la animación.
+        <div
+          key={receivedCount}
+          className={[
+            "rounded-xl px-4 py-3 text-center",
+            lastAgainstYou.hit
+              ? `animate-alert-hit ${sankYourShip ? "bg-sunk" : "bg-hit/85"} text-white`
+              : "animate-alert bg-sea-800 text-foam/75",
+          ].join(" ")}
+        >
+          <p className="font-bold">
+            {sankYourShip
+              ? `☠️ ¡Te han hundido el ${shipStruck && shipKind(shipStruck.id)?.name}!`
+              : lastAgainstYou.hit
+                ? `💥 ¡Tocado tu ${shipStruck && shipKind(shipStruck.id)?.name}!`
+                : "💧 El rival ha fallado"}
+          </p>
+          <p className="text-sm opacity-80">
+            Te dispararon a {coordLabel(lastAgainstYou.x, lastAgainstYou.y)}
+          </p>
+        </div>
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-foam/70">Tablero rival</h2>
@@ -124,12 +188,6 @@ export default function Play({ view, onFire }: Props) {
           <Board marks={ownMarks(view)} compact />
         </div>
         <FleetStatus sunkIds={view.yourSunk} title="Tus barcos:" />
-        {lastAgainstYou && (
-          <p className="text-center text-xs text-foam/60">
-            Te dispararon a {coordLabel(lastAgainstYou.x, lastAgainstYou.y)} →{" "}
-            {lastAgainstYou.hit ? "tocado" : "agua"}
-          </p>
-        )}
       </section>
     </div>
   );
