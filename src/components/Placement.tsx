@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Board, { type CellMark } from "@/components/Board";
-import { canPlace, cellKey, FLEET, randomFleet, type Ship, shipCells } from "@/lib/battleship";
+import {
+  canPlace,
+  cellKey,
+  FLEET,
+  randomFleet,
+  type Ship,
+  shipCells,
+  shipFootprint,
+} from "@/lib/battleship";
 
 type Props = {
   onConfirm: (ships: Ship[]) => Promise<void>;
@@ -37,6 +45,12 @@ export default function Placement({ onConfirm }: Props) {
   };
 
   const marks: Record<string, CellMark> = {};
+  // Zona vetada para el barco seleccionado: los demás barcos más su anillo de
+  // agua. Se pinta primero y los barcos van encima.
+  for (const ship of ships) {
+    if (ship.id === selectedId) continue;
+    for (const key of shipFootprint(ship)) marks[key] = "halo";
+  }
   for (const ship of ships) {
     for (const c of shipCells(ship)) {
       marks[cellKey(c.x, c.y)] = ship.id === selectedId ? "preview" : "ship";
@@ -57,6 +71,10 @@ export default function Placement({ onConfirm }: Props) {
     <div className="flex flex-col gap-4">
       <p className="text-center text-sm text-foam/70">
         Elige un barco y toca el tablero para moverlo. Cuando te guste, confirma.
+      </p>
+      <p className="text-center text-xs text-foam/45">
+        Los barcos no pueden tocarse, ni siquiera por las esquinas. Lo sombreado
+        es donde no cabe el barco que tienes elegido.
       </p>
 
       <Board marks={marks} onCell={(x, y) => move({ ...selected, x, y })} />

@@ -2,7 +2,15 @@
 
 import { BOARD_SIZE, cellKey, COLUMN_LABELS } from "@/lib/battleship";
 
-export type CellMark = "empty" | "ship" | "hit" | "miss" | "sunk" | "preview" | "invalid";
+export type CellMark =
+  | "empty"
+  | "ship"
+  | "hit"
+  | "miss"
+  | "sunk"
+  | "preview"
+  | "invalid"
+  | "halo";
 
 const MARK_CLASS: Record<CellMark, string> = {
   empty: "bg-sea-800/70",
@@ -12,6 +20,8 @@ const MARK_CLASS: Record<CellMark, string> = {
   miss: "bg-sea-950/80",
   preview: "bg-emerald-400/70",
   invalid: "bg-red-500/40",
+  // Agua obligatoria alrededor de un barco: no se puede colocar nada aquí.
+  halo: "bg-sea-500/40",
 };
 
 type Props = {
