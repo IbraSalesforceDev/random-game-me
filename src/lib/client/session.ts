@@ -61,5 +61,6 @@ export const chooseGame = (code: string, game: string) =>
 export const sendMove = (code: string, move: unknown) =>
   post(code, "move", { move }).then((b) => b.view as PlayerView);
 
-export const requestRematch = (code: string) =>
-  post(code, "rematch").then((b) => b.view as PlayerView);
+/** `replay` repite el mismo juego; sin él se vuelve al selector. */
+export const requestRematch = (code: string, replay = false) =>
+  post(code, "rematch", { replay }).then((b) => b.view as PlayerView);
