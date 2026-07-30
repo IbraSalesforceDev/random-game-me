@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Placement from "@/components/battleship/Placement";
 import Play from "@/components/battleship/Play";
+import Checkers from "@/components/checkers/Checkers";
 import Connect4 from "@/components/connect4/Connect4";
 import GamePicker from "@/components/GamePicker";
 import Scoreboard from "@/components/Scoreboard";
@@ -12,6 +13,7 @@ import { chooseGame, requestRematch, sendMove } from "@/lib/client/session";
 import { useGame } from "@/lib/client/useGame";
 import type { BattleshipView } from "@/lib/games/battleship/module";
 import type { Ship } from "@/lib/games/battleship/rules";
+import type { CheckersView } from "@/lib/games/checkers/module";
 import type { Connect4View } from "@/lib/games/connect4/module";
 import type { TicTacToeView } from "@/lib/games/tictactoe/module";
 import type { PlayerView } from "@/lib/server/games";
@@ -81,6 +83,16 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
         view={view}
         game={view.gameView as Connect4View}
         onDrop={(col) => move({ type: "drop", col })}
+      />
+    );
+  }
+
+  if (view.game === "checkers") {
+    return (
+      <Checkers
+        view={view}
+        game={view.gameView as CheckersView}
+        onMove={(from, to) => move({ type: "move", from, to })}
       />
     );
   }

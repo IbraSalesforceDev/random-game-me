@@ -4,7 +4,7 @@ Juegos para dos personas, cada una desde su móvil. Uno crea la sala, comparte u
 código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
 registro ni instalación.
 
-Ahora mismo hay **tres en raya**, **conecta 4** y **hundir la flota**.
+Ahora mismo hay **tres en raya**, **conecta 4**, **damas** y **hundir la flota**.
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
@@ -27,6 +27,10 @@ Ahora mismo hay **tres en raya**, **conecta 4** y **hundir la flota**.
   línea, empate.
 - **Conecta 4.** Tablero de 7×6. Alinea cuatro fichas en horizontal, vertical o
   diagonal. Si se llena sin línea, empate.
+- **Damas.** Reglas españolas: comer es obligatorio y encadenado, el peón
+  avanza y come sólo hacia delante, y al coronar la dama recorre la diagonal
+  entera. Coronar termina el turno. Pierde quien se queda sin piezas o sin
+  movimientos.
 - **Hundir la flota.** Flota clásica de 5 barcos (17 casillas). No pueden
   tocarse entre sí, ni siquiera en diagonal. Acertar da otro disparo, fallar
   cede el turno.
@@ -120,6 +124,7 @@ src/
     Scoreboard.tsx              marcador de la sala
     battleship/                 tablero, colocación y partida
     connect4/                   tablero de fichas
+    checkers/                   tablero de damas
     tictactoe/                  tablero de 3×3
   lib/
     games/
@@ -127,6 +132,7 @@ src/
       index.ts                  registro de juegos disponibles
       tictactoe/                reglas y módulo
       connect4/                 reglas y módulo
+      checkers/                 reglas y módulo
       battleship/               reglas y módulo
     client/                     llamadas a la API y sincronización
     server/                     acceso a la base de datos y estado de la sala
