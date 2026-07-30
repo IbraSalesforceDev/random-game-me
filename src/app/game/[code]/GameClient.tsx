@@ -6,6 +6,7 @@ import Placement from "@/components/battleship/Placement";
 import Play from "@/components/battleship/Play";
 import Connect4 from "@/components/connect4/Connect4";
 import GamePicker from "@/components/GamePicker";
+import Scoreboard from "@/components/Scoreboard";
 import TicTacToe from "@/components/tictactoe/TicTacToe";
 import { chooseGame, requestRematch, sendMove } from "@/lib/client/session";
 import { useGame } from "@/lib/client/useGame";
@@ -162,7 +163,10 @@ export default function GameClient({ code }: { code: string }) {
       {view.status === "waiting" && <ShareCode code={view.code} />}
 
       {view.status === "choosing" && (
-        <GamePicker onChoose={(id) => guard(async () => setView(await chooseGame(code, id)))} />
+        <GamePicker
+          scores={view.scores}
+          onChoose={(id) => guard(async () => setView(await chooseGame(code, id)))}
+        />
       )}
 
       {view.status === "playing" && <ActiveGame view={view} move={move} />}
@@ -174,6 +178,8 @@ export default function GameClient({ code }: { code: string }) {
             <h1 className="mt-2 text-3xl font-black">{outcome.title}</h1>
             <p className="mt-1 opacity-80">{view.gameName}</p>
           </div>
+
+          <Scoreboard tally={view.game ? view.scores[view.game] : undefined} />
 
           {/* Las dos primeras se quedan en la sala; salir se separa y se avisa. */}
           <button
