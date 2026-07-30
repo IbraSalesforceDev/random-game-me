@@ -20,6 +20,9 @@ Ahora mismo hay **tres en raya**, **conecta 4** y **hundir la flota**.
   elige cualquiera y empieza al instante para ambos. Al acabar se puede repetir
   el mismo juego, cambiar a otro, o salir — las dos primeras se quedan en la
   sala.
+- **Marcador por sala.** Cada juego lleva su propia cuenta de victorias y
+  empates, visible al terminar y en el selector. Vive en la sala, así que
+  sobrevive a las revanchas y a los cambios de juego.
 - **Tres en raya.** Tablero de 3×3. Tres seguidas y ganas; si se llena sin
   línea, empate.
 - **Conecta 4.** Tablero de 7×6. Alinea cuatro fichas en horizontal, vertical o
@@ -114,6 +117,7 @@ src/
     api/games/                  crear, unirse, elegir, mover, estado, revancha
   components/
     GamePicker.tsx              selector de juego
+    Scoreboard.tsx              marcador de la sala
     battleship/                 tablero, colocación y partida
     connect4/                   tablero de fichas
     tictactoe/                  tablero de 3×3

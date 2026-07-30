@@ -21,11 +21,21 @@ export type GameRow = {
   state: unknown;
   turn: Side | null;
   winner: Side | null;
+  /** Partidas ganadas en esta sala, por juego. Sobrevive a las revanchas. */
+  scores: Record<string, Tally> | null;
   /** Contador optimista: evita que dos escrituras simultáneas se pisen. */
   version: number;
   created_at: string;
   updated_at: string;
 };
+
+/** Recuento de una sala para un juego concreto. */
+export type Tally = { host: number; guest: number; draws: number };
+
+export const emptyTally = (): Tally => ({ host: 0, guest: 0, draws: 0 });
+
+/** El marcador visto desde un jugador: siempre «tú» a la izquierda. */
+export type PlayerTally = { you: number; opponent: number; draws: number };
 
 /** Lo que se le manda a un jugador. Nunca incluye datos ocultos del rival. */
 export type PlayerView = {
@@ -39,6 +49,8 @@ export type PlayerView = {
   gameName: string | null;
   /** Estado del juego filtrado por su módulo, o null si aún no hay juego. */
   gameView: unknown;
+  /** Marcador de la sala por juego, ya orientado a este jugador. */
+  scores: Record<string, PlayerTally>;
   updatedAt: string;
 };
 
@@ -74,10 +86,21 @@ function outcomeFor(row: GameRow, side: Side): PlayerView["outcome"] {
   return row.winner === side ? "won" : "lost";
 }
 
+/** Da la vuelta al marcador para que «tú» sea siempre quien pregunta. */
+function scoresFor(row: GameRow, side: Side): Record<string, PlayerTally> {
+  const rival = other(side);
+  const out: Record<string, PlayerTally> = {};
+  for (const [gameId, tally] of Object.entries(row.scores ?? {})) {
+    out[gameId] = { you: tally[side], opponent: tally[rival], draws: tally.draws };
+  }
+  return out;
+}
+
 export function toPlayerView(row: GameRow, side: Side): PlayerView {
   const module = gameById(row.game);
 
   return {
+    scores: scoresFor(row, side),
     code: row.code,
     status: row.status,
     you: side,

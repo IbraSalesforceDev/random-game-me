@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { gameById } from "@/lib/games";
-import { type GameRow, toPlayerView } from "@/lib/server/games";
+import { emptyTally, type GameRow, toPlayerView } from "@/lib/server/games";
 import { isResponse, loadGameForToken } from "@/lib/server/load";
 import { broadcastGameUpdate, supabaseAdmin } from "@/lib/server/supabase";
 
@@ -37,6 +37,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const result = module.applyMove(row.state, side, body?.move);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  // El marcador se apunta en la misma escritura que el movimiento, así que el
+  // filtro por `version` también lo protege de contarse dos veces.
+  const scores = { ...(row.scores ?? {}) };
+  if (result.finished) {
+    const tally = { ...(scores[module.id] ?? emptyTally()) };
+    if (result.winner) tally[result.winner] += 1;
+    else tally.draws += 1;
+    scores[module.id] = tally;
+  }
+
   // El filtro por `version` hace que dos movimientos simultáneos no se pisen.
   const { data, error } = await supabaseAdmin()
     .from("games")
@@ -45,6 +55,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
       turn: result.turn,
       winner: result.winner,
       status: result.finished ? "finished" : "playing",
+      scores,
       version: row.version + 1,
       updated_at: new Date().toISOString(),
     })

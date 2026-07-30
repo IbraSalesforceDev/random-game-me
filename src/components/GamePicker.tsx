@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Scoreboard from "@/components/Scoreboard";
 import { GAMES } from "@/lib/games";
+import type { PlayerTally } from "@/lib/server/games";
 
 type Props = {
+  /** Marcador de la sala por juego, para ver cómo va cada uno. */
+  scores: Record<string, PlayerTally>;
   onChoose: (gameId: string) => Promise<void>;
 };
 
-export default function GamePicker({ onChoose }: Props) {
+export default function GamePicker({ scores, onChoose }: Props) {
   const [choosing, setChoosing] = useState<string | null>(null);
 
   const pick = async (id: string) => {
@@ -24,7 +28,7 @@ export default function GamePicker({ onChoose }: Props) {
       <div className="text-center">
         <h2 className="text-xl font-bold">¿A qué jugamos?</h2>
         <p className="mt-1 text-sm text-foam/60">
-          Elige cualquiera de los dos: empieza para ambos al instante.
+          Elige el que quieras: empieza para los dos al instante.
         </p>
       </div>
 
@@ -38,7 +42,10 @@ export default function GamePicker({ onChoose }: Props) {
         >
           <span className="text-4xl">{game.emoji}</span>
           <span className="flex-1">
-            <span className="block text-lg font-bold">{game.name}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-lg font-bold">{game.name}</span>
+              <Scoreboard tally={scores[game.id]} compact />
+            </span>
             <span className="block text-sm text-foam/60">{game.tagline}</span>
           </span>
           {choosing === game.id && (
