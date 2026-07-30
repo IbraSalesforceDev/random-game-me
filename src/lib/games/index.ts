@@ -1,4 +1,5 @@
 import { battleship } from "@/lib/games/battleship/module";
+import { checkers } from "@/lib/games/checkers/module";
 import { connect4 } from "@/lib/games/connect4/module";
 import { tictactoe } from "@/lib/games/tictactoe/module";
 import type { GameModule } from "@/lib/games/types";
@@ -8,7 +9,7 @@ import type { GameModule } from "@/lib/games/types";
  * la sala, los turnos, Realtime y la revancha ya funcionan para todos.
  */
 // Del más rápido al más largo: el primero de la lista es el más fácil de picar.
-export const GAMES = [tictactoe, connect4, battleship] as const;
+export const GAMES = [tictactoe, connect4, checkers, battleship] as const;
 
 export type GameId = (typeof GAMES)[number]["id"];
 
