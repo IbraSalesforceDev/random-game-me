@@ -25,9 +25,22 @@ function buzz(pattern: number | number[]) {
   }
 }
 
-const PIECE: Record<Side, string> = {
-  host: "bg-amber-300 text-amber-900",
-  guest: "bg-rose-500 text-rose-950",
+/**
+ * Blancas para quien abre y negras para el rival, como manda la tradición.
+ * Las negras llevan borde propio porque el tablero ya es oscuro y si no se
+ * pierden contra las casillas.
+ */
+const PIECE: Record<Side, { fill: string; ring: string; dot: string }> = {
+  host: {
+    fill: "bg-slate-100 text-sea-950",
+    ring: "ring-1 ring-slate-400/50",
+    dot: "bg-slate-100",
+  },
+  guest: {
+    fill: "bg-slate-950 text-slate-100",
+    ring: "ring-1 ring-slate-400/70",
+    dot: "bg-slate-950 ring-1 ring-slate-400/70",
+  },
 };
 
 export default function Checkers({ view, game, onMove }: Props) {
@@ -92,7 +105,7 @@ export default function Checkers({ view, game, onMove }: Props) {
           view.yourTurn ? "bg-emerald-400 text-sea-950" : "bg-sea-800 text-foam/70",
         ].join(" ")}
       >
-        <span className={`size-4 rounded-full ${PIECE[view.yourTurn ? you : rival].split(" ")[0]}`} />
+        <span className={`size-4 rounded-full ${PIECE[view.yourTurn ? you : rival].dot}`} />
         {view.yourTurn
           ? game.chainFrom !== null
             ? "¡Sigue comiendo!"
@@ -135,9 +148,14 @@ export default function Checkers({ view, game, onMove }: Props) {
                 <span
                   className={[
                     "grid size-[78%] place-items-center rounded-full text-sm font-black shadow-md",
-                    PIECE[piece.side],
-                    isOrigin ? "ring-2 ring-emerald-300/80" : "",
-                    isActive ? "ring-2 ring-emerald-200" : "",
+                    PIECE[piece.side].fill,
+                    // Un único anillo: una pieza seleccionada también es origen,
+                    // y dos clases `ring-*` se pisarían según el orden del CSS.
+                    isActive
+                      ? "ring-2 ring-emerald-200"
+                      : isOrigin
+                        ? "ring-2 ring-emerald-300/80"
+                        : PIECE[piece.side].ring,
                   ].join(" ")}
                 >
                   {piece.king ? "♛" : ""}
@@ -158,12 +176,12 @@ export default function Checkers({ view, game, onMove }: Props) {
 
       <div className="flex items-center justify-center gap-5 text-sm text-foam/60">
         <span className="flex items-center gap-2">
-          <span className={`size-3 rounded-full ${PIECE[you].split(" ")[0]}`} />
+          <span className={`size-3 rounded-full ${PIECE[you].dot}`} />
           Tú
           <span className="tabular-nums opacity-60">({12 - captured.you})</span>
         </span>
         <span className="flex items-center gap-2">
-          <span className={`size-3 rounded-full ${PIECE[rival].split(" ")[0]}`} />
+          <span className={`size-3 rounded-full ${PIECE[rival].dot}`} />
           Rival
           <span className="tabular-nums opacity-60">({12 - captured.rival})</span>
         </span>
