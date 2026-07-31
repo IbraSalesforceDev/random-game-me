@@ -1,4 +1,4 @@
-import type { Side } from "@/lib/games/types";
+import { other, type Side } from "@/lib/games/types";
 
 export const SIZE = 8;
 export const CELLS = SIZE * SIZE;
@@ -146,6 +146,57 @@ export function applyMoveToBoard(board: Board, move: Move): { board: Board; crow
 
 export function countPieces(board: Board, side: Side): number {
   return board.filter((p) => p?.side === side).length;
+}
+
+/** Cómo queda la partida tras un movimiento ya validado. */
+export type Advance = {
+  board: Board;
+  chainFrom: number | null;
+  turn: Side | null;
+  winner: Side | null;
+  finished: boolean;
+};
+
+/**
+ * Aplica un movimiento legal y resuelve qué pasa después: si la cadena sigue,
+ * si toca cambiar de turno o si la partida ha terminado.
+ *
+ * Lo usan tanto la validación como el bot, para que no puedan interpretar las
+ * reglas de forma distinta.
+ */
+export function advance(board: Board, side: Side, move: Move): Advance {
+  const applied = applyMoveToBoard(board, move);
+
+  // Comer y poder seguir comiendo obliga a encadenar con la misma pieza.
+  // Coronar corta la cadena aunque quedaran capturas.
+  const chains =
+    move.captured.length > 0 &&
+    !applied.crowned &&
+    capturesFrom(applied.board, move.to).length > 0;
+
+  if (chains) {
+    return {
+      board: applied.board,
+      chainFrom: move.to,
+      turn: side,
+      winner: null,
+      finished: false,
+    };
+  }
+
+  // Pierde quien se queda sin piezas o sin ningún movimiento legal.
+  const rival = other(side);
+  const lost =
+    countPieces(applied.board, rival) === 0 ||
+    legalMoves(applied.board, rival, null).length === 0;
+
+  return {
+    board: applied.board,
+    chainFrom: null,
+    turn: lost ? null : rival,
+    winner: lost ? side : null,
+    finished: lost,
+  };
 }
 
 export const cellLabel = (i: number) =>

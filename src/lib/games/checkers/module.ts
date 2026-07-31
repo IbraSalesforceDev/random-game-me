@@ -1,14 +1,13 @@
+import { checkersBot } from "@/lib/games/checkers/bot";
 import {
-  applyMoveToBoard,
+  advance,
   type Board,
-  capturesFrom,
   CELLS,
-  countPieces,
   initialBoard,
   legalMoves,
   type Move,
 } from "@/lib/games/checkers/rules";
-import { defineGame, type MoveResult, other, type Side } from "@/lib/games/types";
+import { defineGame, type MoveResult, type Side } from "@/lib/games/types";
 
 export type CheckersState = {
   board: Board;
@@ -34,6 +33,8 @@ export const checkers = defineGame<CheckersState, CheckersMove>({
 
   toView: (state) => state,
 
+  bot: checkersBot,
+
   applyMove(state, side, move): MoveResult<CheckersState> {
     if (move?.type !== "move") return { ok: false, error: "Movimiento desconocido" };
 
@@ -51,34 +52,14 @@ export const checkers = defineGame<CheckersState, CheckersMove>({
       };
     }
 
-    const { board, crowned } = applyMoveToBoard(state.board, chosen);
-
-    // Si acaba de comer y puede seguir, la cadena continúa con la misma pieza.
-    // Coronar corta la cadena aunque quedaran capturas.
-    const sigue =
-      chosen.captured.length > 0 && !crowned && capturesFrom(board, chosen.to).length > 0;
-
-    if (sigue) {
-      return {
-        ok: true,
-        state: { board, chainFrom: chosen.to, lastMove: chosen },
-        turn: side,
-        winner: null,
-        finished: false,
-      };
-    }
-
-    // Pierde quien se queda sin piezas o sin ningún movimiento legal.
-    const rival = other(side);
-    const rivalPerdido =
-      countPieces(board, rival) === 0 || legalMoves(board, rival, null).length === 0;
+    const next = advance(state.board, side, chosen);
 
     return {
       ok: true,
-      state: { board, chainFrom: null, lastMove: chosen },
-      turn: rivalPerdido ? null : rival,
-      winner: rivalPerdido ? side : null,
-      finished: rivalPerdido,
+      state: { board: next.board, chainFrom: next.chainFrom, lastMove: chosen },
+      turn: next.turn,
+      winner: next.winner,
+      finished: next.finished,
     };
   },
 });
