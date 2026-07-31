@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { gameById, isGameId } from "@/lib/games";
-import { type GameRow, toPlayerView } from "@/lib/server/games";
+import { playBotTurns } from "@/lib/server/bot";
+import { botSideOf, type GameRow, toPlayerView } from "@/lib/server/games";
 import { isResponse, loadGameForToken } from "@/lib/server/load";
 import { broadcastGameUpdate, supabaseAdmin } from "@/lib/server/supabase";
 
@@ -25,14 +26,20 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
 
   const module = gameById(body.game)!;
 
+  // Si el bot abre, deja hecha su jugada antes de guardar.
+  const botSide = botSideOf(row);
+  const opening = { state: module.createState(), turn: module.initialTurn(), winner: null, finished: false };
+  const start =
+    botSide && row.bot_level ? playBotTurns(module, botSide, row.bot_level, opening) : opening;
+
   // El filtro por `version` resuelve el empate si los dos eligen a la vez:
   // gana quien llegue primero y el otro recibe la partida ya empezada.
   const { data, error } = await supabaseAdmin()
     .from("games")
     .update({
       game: module.id,
-      state: module.createState(),
-      turn: module.initialTurn(),
+      state: start.state,
+      turn: start.turn,
       status: "playing",
       winner: null,
       version: row.version + 1,

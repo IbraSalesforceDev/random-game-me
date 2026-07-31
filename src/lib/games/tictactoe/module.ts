@@ -5,6 +5,7 @@ import {
   isFull,
   winningLine,
 } from "@/lib/games/tictactoe/rules";
+import { tictactoeBot } from "@/lib/games/tictactoe/bot";
 import { defineGame, type MoveResult, other } from "@/lib/games/types";
 
 export type TicTacToeState = {
@@ -29,6 +30,8 @@ export const tictactoe = defineGame<TicTacToeState, TicTacToeMove>({
   initialTurn: () => "host",
 
   toView: (state) => state,
+
+  bot: tictactoeBot,
 
   applyMove(state, side, move): MoveResult<TicTacToeState> {
     if (move?.type !== "mark") return { ok: false, error: "Movimiento desconocido" };

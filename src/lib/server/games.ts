@@ -1,4 +1,5 @@
 import { gameById } from "@/lib/games";
+import type { BotLevel } from "@/lib/games/types";
 import { other, type Side } from "@/lib/games/types";
 
 export { other };
@@ -23,6 +24,8 @@ export type GameRow = {
   winner: Side | null;
   /** Partidas ganadas en esta sala, por juego. Sobrevive a las revanchas. */
   scores: Record<string, Tally> | null;
+  /** Nivel del bot si la sala es en solitario; null si juegan dos personas. */
+  bot_level: BotLevel | null;
   /** Contador optimista: evita que dos escrituras simultáneas se pisen. */
   version: number;
   created_at: string;
@@ -51,6 +54,8 @@ export type PlayerView = {
   gameView: unknown;
   /** Marcador de la sala por juego, ya orientado a este jugador. */
   scores: Record<string, PlayerTally>;
+  /** Nivel del bot, o null si el rival es una persona. */
+  botLevel: BotLevel | null;
   updatedAt: string;
 };
 
@@ -96,11 +101,15 @@ function scoresFor(row: GameRow, side: Side): Record<string, PlayerTally> {
   return out;
 }
 
+/** En las salas en solitario el bot siempre juega de invitado. */
+export const botSideOf = (row: GameRow): Side | null => (row.bot_level ? "guest" : null);
+
 export function toPlayerView(row: GameRow, side: Side): PlayerView {
   const module = gameById(row.game);
 
   return {
     scores: scoresFor(row, side),
+    botLevel: row.bot_level,
     code: row.code,
     status: row.status,
     you: side,

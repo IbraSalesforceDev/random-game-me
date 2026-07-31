@@ -46,7 +46,26 @@ export type GameModule<S = unknown, M = unknown> = {
 
   /** Valida y aplica un movimiento. Nunca debe modificar `state`. */
   applyMove(state: S, side: Side, move: M): MoveResult<S>;
+
+  /**
+   * Elige el movimiento del bot. Es opcional: un juego que no la implemente
+   * simplemente no aparece cuando se juega en solitario.
+   */
+  bot?(state: S, side: Side, level: BotLevel): M | null;
 };
+
+export const BOT_LEVELS = ["easy", "medium", "hard"] as const;
+export type BotLevel = (typeof BOT_LEVELS)[number];
+
+export const BOT_LABEL: Record<BotLevel, string> = {
+  easy: "Fácil",
+  medium: "Normal",
+  hard: "Difícil",
+};
+
+export function isBotLevel(v: unknown): v is BotLevel {
+  return typeof v === "string" && (BOT_LEVELS as readonly string[]).includes(v);
+}
 
 /** Ayuda a conservar los tipos al declarar un módulo. */
 export function defineGame<S, M>(module: GameModule<S, M>): GameModule<S, M> {
