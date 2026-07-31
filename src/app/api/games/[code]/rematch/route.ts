@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { gameById } from "@/lib/games";
-import { type GameRow, toPlayerView } from "@/lib/server/games";
+import { playBotTurns } from "@/lib/server/bot";
+import { botSideOf, type GameRow, toPlayerView } from "@/lib/server/games";
 import { isResponse, loadGameForToken } from "@/lib/server/load";
 import { broadcastGameUpdate, supabaseAdmin } from "@/lib/server/supabase";
 
@@ -30,13 +31,23 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
 
   const module = replay ? gameById(game.game) : undefined;
 
-  const patch = module
+  // Si el bot abre la revancha, deja hecha su jugada antes de guardar.
+  const botSide = botSideOf(game);
+  const opening = module
+    ? { state: module.createState(), turn: module.initialTurn(), winner: null, finished: false }
+    : null;
+  const start =
+    module && opening && botSide && game.bot_level
+      ? playBotTurns(module, botSide, game.bot_level, opening)
+      : opening;
+
+  const patch = module && start
     ? {
         // Otra del mismo juego: se salta el selector y empieza directo.
         status: "playing" as const,
         game: module.id,
-        state: module.createState(),
-        turn: module.initialTurn(),
+        state: start.state,
+        turn: start.turn,
       }
     : {
         status: "choosing" as const,

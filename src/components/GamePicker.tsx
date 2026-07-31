@@ -8,10 +8,13 @@ import type { PlayerTally } from "@/lib/server/games";
 type Props = {
   /** Marcador de la sala por juego, para ver cómo va cada uno. */
   scores: Record<string, PlayerTally>;
+  /** En solitario sólo se ofrecen los juegos que tienen bot. */
+  soloOnly?: boolean;
   onChoose: (gameId: string) => Promise<void>;
 };
 
-export default function GamePicker({ scores, onChoose }: Props) {
+export default function GamePicker({ scores, soloOnly, onChoose }: Props) {
+  const games = soloOnly ? GAMES.filter((g) => g.bot) : GAMES;
   const [choosing, setChoosing] = useState<string | null>(null);
 
   const pick = async (id: string) => {
@@ -28,11 +31,13 @@ export default function GamePicker({ scores, onChoose }: Props) {
       <div className="text-center">
         <h2 className="text-xl font-bold">¿A qué jugamos?</h2>
         <p className="mt-1 text-sm text-foam/60">
-          Elige el que quieras: empieza para los dos al instante.
+          {soloOnly
+            ? "Estos son los que el bot sabe jugar por ahora."
+            : "Elige el que quieras: empieza para los dos al instante."}
         </p>
       </div>
 
-      {GAMES.map((game) => (
+      {games.map((game) => (
         <button
           key={game.id}
           type="button"

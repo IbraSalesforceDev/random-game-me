@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { gameById } from "@/lib/games";
-import { emptyTally, type GameRow, toPlayerView } from "@/lib/server/games";
+import { playBotTurns } from "@/lib/server/bot";
+import { botSideOf, emptyTally, type GameRow, toPlayerView } from "@/lib/server/games";
 import { isResponse, loadGameForToken } from "@/lib/server/load";
 import { broadcastGameUpdate, supabaseAdmin } from "@/lib/server/supabase";
 
@@ -37,12 +38,20 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const result = module.applyMove(row.state, side, body?.move);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  // En solitario el bot responde dentro de la misma petición, de modo que el
+  // jugador recibe ya la jugada del rival y no hace falta esperar a un sondeo.
+  const botSide = botSideOf(row);
+  const progress =
+    botSide && row.bot_level
+      ? playBotTurns(module, botSide, row.bot_level, result)
+      : result;
+
   // El marcador se apunta en la misma escritura que el movimiento, así que el
   // filtro por `version` también lo protege de contarse dos veces.
   const scores = { ...(row.scores ?? {}) };
-  if (result.finished) {
+  if (progress.finished) {
     const tally = { ...(scores[module.id] ?? emptyTally()) };
-    if (result.winner) tally[result.winner] += 1;
+    if (progress.winner) tally[progress.winner] += 1;
     else tally.draws += 1;
     scores[module.id] = tally;
   }
@@ -51,10 +60,10 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const { data, error } = await supabaseAdmin()
     .from("games")
     .update({
-      state: result.state,
-      turn: result.turn,
-      winner: result.winner,
-      status: result.finished ? "finished" : "playing",
+      state: progress.state,
+      turn: progress.turn,
+      winner: progress.winner,
+      status: progress.finished ? "finished" : "playing",
       scores,
       version: row.version + 1,
       updated_at: new Date().toISOString(),

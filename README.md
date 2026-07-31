@@ -5,6 +5,7 @@ código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
 registro ni instalación.
 
 Ahora mismo hay **tres en raya**, **conecta 4**, **damas** y **hundir la flota**.
+Y si no hay rival a mano, se puede jugar **contra el bot** en tres niveles.
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
@@ -42,6 +43,31 @@ mantener una conexión abierta. Supabase Realtime pone esa conexión persistente
 Vercel se queda con lo que hace bien (el frontend y la API). Las escrituras usan
 un contador `version` para que dos acciones simultáneas no se pisen.
 
+### El bot
+
+Los juegos pueden implementar una quinta función opcional, `bot`, que elige la
+jugada del rival. Un juego que no la tenga simplemente no aparece cuando juegas
+en solitario.
+
+El bot corre **en el servidor**, dentro de la misma petición que tu jugada. Es
+la única opción sensata: en el cliente necesitaría ver su propio estado —la
+flota, en el hundir la flota— y con eso se cae todo el diseño de privacidad.
+Además el contador `version` que ya evita jugadas duplicadas cubre gratis la
+del bot.
+
+El motor es un minimax con poda alfa-beta compartido
+([`src/lib/games/bot/minimax.ts`](src/lib/games/bot/minimax.ts)). No asume que
+los turnos se alternen: cada jugada devuelve a quién le toca, así que una
+cadena de capturas o un tiro extra encajan sin tocar nada. Cada juego sólo
+aporta su función de evaluación.
+
+La dificultad son dos números: cuántas jugadas mira por delante y con qué
+probabilidad tira al azar a propósito. En el tres en raya, que es un juego
+resuelto, el nivel difícil es matemáticamente imbatible.
+
+Una sala en solitario es una sala normal: el hueco de invitado lo ocupa el bot,
+así que revancha, marcador y cambio de juego funcionan sin nada especial.
+
 ### Añadir un juego nuevo
 
 La sala no sabe a qué se juega. Guarda `game` (qué juego) y `state` (un jsonb
@@ -52,6 +78,7 @@ el contrato de [`src/lib/games/types.ts`](src/lib/games/types.ts):
 - `initialTurn()` — quién abre, o `null` si hay una fase sin turnos
 - `applyMove(state, side, move)` — valida y aplica, devolviendo turno y ganador
 - `toView(state, side)` — qué puede ver cada jugador
+- `bot(state, side, nivel)` — opcional, para poder jugar en solitario
 
 Escribes el módulo, lo añades al registro de [`src/lib/games/index.ts`](src/lib/games/index.ts)
 y le pones interfaz. Salas, turnos, Realtime, revancha y reconexión ya funcionan.
@@ -130,6 +157,7 @@ src/
     games/
       types.ts                  contrato que implementa cada juego
       index.ts                  registro de juegos disponibles
+      bot/                      motor minimax compartido
       tictactoe/                reglas y módulo
       connect4/                 reglas y módulo
       checkers/                 reglas y módulo

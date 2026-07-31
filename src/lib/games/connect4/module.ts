@@ -6,6 +6,7 @@ import {
   isGridFull,
   winningLine,
 } from "@/lib/games/connect4/rules";
+import { connect4Bot } from "@/lib/games/connect4/bot";
 import { defineGame, type MoveResult, other } from "@/lib/games/types";
 
 export type Connect4State = {
@@ -31,6 +32,8 @@ export const connect4 = defineGame<Connect4State, Connect4Move>({
   initialTurn: () => "host",
 
   toView: (state) => state,
+
+  bot: connect4Bot,
 
   applyMove(state, side, move): MoveResult<Connect4State> {
     if (move?.type !== "drop") return { ok: false, error: "Movimiento desconocido" };

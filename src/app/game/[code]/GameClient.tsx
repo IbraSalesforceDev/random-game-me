@@ -16,6 +16,7 @@ import type { Ship } from "@/lib/games/battleship/rules";
 import type { CheckersView } from "@/lib/games/checkers/module";
 import type { Connect4View } from "@/lib/games/connect4/module";
 import type { TicTacToeView } from "@/lib/games/tictactoe/module";
+import { BOT_LABEL } from "@/lib/games/types";
 import type { PlayerView } from "@/lib/server/games";
 
 function ShareCode({ code }: { code: string }) {
@@ -163,7 +164,9 @@ export default function GameClient({ code }: { code: string }) {
       <header className="flex items-center justify-between gap-2 text-sm text-foam/50">
         <Link href="/">← Salir</Link>
         <span className="truncate">{view.gameName}</span>
-        <span className="font-mono tracking-widest">SALA {view.code}</span>
+        <span className={view.botLevel ? "" : "font-mono tracking-widest"}>
+          {view.botLevel ? `🤖 Bot · ${BOT_LABEL[view.botLevel]}` : `SALA ${view.code}`}
+        </span>
       </header>
 
       {notice && (
@@ -177,6 +180,7 @@ export default function GameClient({ code }: { code: string }) {
       {view.status === "choosing" && (
         <GamePicker
           scores={view.scores}
+          soloOnly={view.botLevel !== null}
           onChoose={(id) => guard(async () => setView(await chooseGame(code, id)))}
         />
       )}
@@ -217,7 +221,7 @@ export default function GameClient({ code }: { code: string }) {
             href="/"
             className="mt-2 text-center text-sm text-foam/45 underline decoration-foam/20 underline-offset-4"
           >
-            Salir de la sala {view.code}
+            {view.botLevel ? "Volver al inicio" : `Salir de la sala ${view.code}`}
           </Link>
         </div>
       )}

@@ -17,8 +17,15 @@ async function parse(res: Response) {
   return body;
 }
 
-export async function createGame(): Promise<{ code: string; token: string }> {
-  return parse(await fetch("/api/games", { method: "POST" }));
+/** Con `level` la partida es contra el bot; sin él, espera a un rival. */
+export async function createGame(level?: string): Promise<{ code: string; token: string }> {
+  return parse(
+    await fetch("/api/games", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level }),
+    }),
+  );
 }
 
 /** Entra en la partida (o reconecta si ya teníamos token guardado). */

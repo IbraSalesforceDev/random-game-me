@@ -3,18 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createGame, saveToken } from "@/lib/client/session";
+import { BOT_LABEL, BOT_LEVELS } from "@/lib/games/types";
 
 export default function Home() {
   const router = useRouter();
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState<"create" | "join" | null>(null);
+  const [busy, setBusy] = useState<"create" | "join" | "solo" | null>(null);
+  const [pickingLevel, setPickingLevel] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const create = async () => {
-    setBusy("create");
+  const create = async (level?: string) => {
+    setBusy(level ? "solo" : "create");
     setError(null);
     try {
-      const game = await createGame();
+      const game = await createGame(level);
       saveToken(game.code, game.token);
       router.push(`/game/${game.code}`);
     } catch (e) {
@@ -47,7 +49,7 @@ export default function Home() {
       <div className="flex flex-col gap-6">
         <button
           type="button"
-          onClick={create}
+          onClick={() => create()}
           disabled={busy !== null}
           className="rounded-2xl bg-emerald-400 px-6 py-5 text-xl font-bold text-sea-950 disabled:opacity-50 active:brightness-110"
         >
@@ -79,10 +81,50 @@ export default function Home() {
             {busy === "join" ? "Entrando…" : "Entrar"}
           </button>
         </form>
+        <div className="flex items-center gap-3 text-foam/40">
+          <span className="h-px flex-1 bg-foam/15" />
+          <span className="text-xs uppercase tracking-widest">o sin rival</span>
+          <span className="h-px flex-1 bg-foam/15" />
+        </div>
+
+        {pickingLevel ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-center text-sm text-foam/60">¿Cómo de duro lo quieres?</p>
+            <div className="grid grid-cols-3 gap-2">
+              {BOT_LEVELS.map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => create(level)}
+                  disabled={busy !== null}
+                  className="rounded-2xl bg-sea-800 px-3 py-4 font-semibold ring-1 ring-sea-700 disabled:opacity-40 active:brightness-110"
+                >
+                  {BOT_LABEL[level]}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPickingLevel(false)}
+              className="text-center text-xs text-foam/40 underline decoration-foam/20 underline-offset-4"
+            >
+              Mejor busco rival
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPickingLevel(true)}
+            disabled={busy !== null}
+            className="rounded-2xl bg-sea-800 px-6 py-4 text-lg font-semibold ring-1 ring-sea-700 disabled:opacity-40 active:brightness-110"
+          >
+            🤖 Jugar contra el bot
+          </button>
+        )}
       </div>
 
       <p className="text-center text-xs text-foam/40">
-        Crea una sala, comparte el código y elegís a qué jugar.
+        Comparte el código con quien quieras, o pícate con el bot.
       </p>
     </main>
   );
