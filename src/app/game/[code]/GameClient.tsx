@@ -152,7 +152,13 @@ function ActiveGame({
  * 4— no hay nada que seguir con la vista, y una respuesta demasiado pegada a
  * la tuya no llega a leerse como el turno del rival.
  */
-const THINK_MS = 1000;
+const THINK_MS: Record<string, number> = {
+  // En el dominó su jugada es una ficha que aparece en un extremo de la
+  // cadena mientras tú miras tu mano, y encima hay un aviso que leer: necesita
+  // algo más de aire que un tablero donde el cambio te salta a la vista.
+  domino: 1300,
+};
+const DEFAULT_THINK_MS = 1000;
 /**
  * Pausa entre jugadas encadenadas. En las damas una cadena de capturas es un
  * mismo movimiento seguido y ese ritmo va bien, pero en el hundir la flota
@@ -221,7 +227,9 @@ export default function GameClient({ code }: { code: string }) {
         return;
       }
 
-      const chainMs = CHAIN_MS[view.game ?? ""] ?? DEFAULT_CHAIN_MS;
+      const juego = view.game ?? "";
+      const thinkMs = THINK_MS[juego] ?? DEFAULT_THINK_MS;
+      const chainMs = CHAIN_MS[juego] ?? DEFAULT_CHAIN_MS;
 
       freeze(true);
       setThinking(true);
@@ -230,7 +238,7 @@ export default function GameClient({ code }: { code: string }) {
           setView(step);
           // La pausa va entre jugadas, no después de la última: tu propia
           // jugada tiene que pintarse al momento.
-          if (i < replay.length - 1) await sleep(i === 0 ? THINK_MS : chainMs);
+          if (i < replay.length - 1) await sleep(i === 0 ? thinkMs : chainMs);
         }
       } finally {
         setThinking(false);

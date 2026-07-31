@@ -49,16 +49,26 @@ function Half({ n }: { n: number }) {
 function TileView({
   tile,
   upright,
+  marked,
+  label,
+  ref,
   className = "",
 }: {
   tile: Tile;
   upright?: boolean;
+  /** Última colocada: parpadea para que se vea llegar. */
+  marked?: boolean;
+  /** Para poder identificarla desde fuera; las de la mano ya van en su botón. */
+  label?: string;
+  ref?: React.Ref<HTMLSpanElement>;
   className?: string;
 }) {
   return (
     <span
+      ref={ref}
+      aria-label={label}
       className={[
-        "relative flex shrink-0 overflow-hidden rounded-md bg-slate-100 shadow-sm",
+        "relative flex shrink-0 rounded-md bg-slate-100 shadow-sm",
         upright ? "h-[4.4rem] w-[2.2rem] flex-col" : "h-9 w-[4.5rem] flex-row",
         className,
       ].join(" ")}
@@ -70,6 +80,9 @@ function TileView({
       <span className="aspect-square w-full flex-1">
         <Half n={tile[1]} />
       </span>
+      {marked && (
+        <span className="animate-last-move pointer-events-none absolute -inset-0.5 rounded-md border-2 border-foam" />
+      )}
     </span>
   );
 }
@@ -78,6 +91,7 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
   const [selected, setSelected] = useState<Tile | null>(null);
   const [sending, setSending] = useState(false);
   const chainRef = useRef<HTMLDivElement>(null);
+  const lastRef = useRef<HTMLSpanElement>(null);
 
   const playable = view.yourTurn && view.status === "playing" && !sending;
 
@@ -99,15 +113,20 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
   // una que ya se ha colocado.
   useEffect(() => setSelected(null), [view.updatedAt]);
 
-  // La cadena crece por los dos lados, así que se sigue la última colocada.
+  // La cadena crece por los dos lados, así que se centra la última colocada.
+  //
+  // Las dependencias son valores sueltos a propósito. Con `game.lastPlay` el
+  // efecto saltaba en CADA sondeo —la vista se rehace y el objeto es nuevo
+  // aunque su contenido sea idéntico—, así que la cadena se iba sola al
+  // extremo cada tres segundos y no había manera de mirarla.
   useEffect(() => {
     const el = chainRef.current;
-    if (!el) return;
-    el.scrollTo({
-      left: game.lastPlay?.end === "left" ? 0 : el.scrollWidth,
-      behavior: "smooth",
-    });
-  }, [game.lastPlay]);
+    const ficha = lastRef.current;
+    if (!el || !ficha) return;
+    // Centrarla en la tira, sin tocar el scroll de la página.
+    const destino = ficha.offsetLeft - el.clientWidth / 2 + ficha.offsetWidth / 2;
+    el.scrollTo({ left: Math.max(0, destino), behavior: "smooth" });
+  }, [game.chain.length, game.lastPlay?.end]);
 
   const send = async (fn: () => Promise<void>) => {
     setSending(true);
@@ -159,9 +178,22 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
         )}
       </div>
 
+      {/* Mientras eliges ficha estás mirando tu mano, no la cadena: si el
+          rival coloca y no se dice, la jugada pasa desapercibida. */}
+      {game.lastPlay && game.lastPlay.side !== view.you && (
+        <p
+          key={`jugada-${game.chain.length}`}
+          className="animate-alert flex items-center justify-center gap-2 rounded-lg bg-water/[0.18] px-3 py-2 text-center text-sm text-foam ring-1 ring-water/70"
+        >
+          El rival ha colocado la
+          <TileView tile={game.lastPlay.tile} className="!h-6 !w-12" />
+          por la {game.lastPlay.end === "left" ? "izquierda" : "derecha"}
+        </p>
+      )}
+
       {game.lastDrawn && game.lastDrawn.count > 0 && (
         <p
-          key={`${game.lastDrawn.side}-${game.poolCount}`}
+          key={`robo-${game.lastDrawn.side}-${game.poolCount}`}
           className="animate-alert rounded-lg bg-sea-800/80 px-3 py-2 text-center text-sm text-foam/75"
         >
           {game.lastDrawn.side === view.you ? "Has robado" : "El rival ha robado"}{" "}
@@ -190,8 +222,10 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
             {game.chain.map((tile, i) => (
               <TileView
                 key={`${tile[0]}-${tile[1]}-${i}`}
+                ref={i === lastIndex ? lastRef : undefined}
                 tile={tile}
-                className={i === lastIndex ? "ring-2 ring-foam" : ""}
+                marked={i === lastIndex}
+                label={`Cadena ${tile[0]} ${tile[1]}`}
               />
             ))}
           </div>
