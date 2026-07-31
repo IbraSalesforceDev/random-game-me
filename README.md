@@ -5,7 +5,8 @@ código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
 registro ni instalación.
 
 Ahora mismo hay **tres en raya**, **conecta 4**, **damas** y **hundir la flota**.
-Y si no hay rival a mano, se puede jugar **contra el bot** en tres niveles.
+Y si no hay rival a mano, se puede jugar **contra el bot** en tres niveles
+(en todos menos en el hundir la flota, de momento).
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
