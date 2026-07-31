@@ -41,10 +41,11 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   // En solitario el bot responde dentro de la misma petición, de modo que el
   // jugador recibe ya la jugada del rival y no hace falta esperar a un sondeo.
   const botSide = botSideOf(row);
-  const progress =
+  const run =
     botSide && row.bot_level
       ? playBotTurns(module, botSide, row.bot_level, result)
-      : result;
+      : { progress: result, steps: [] };
+  const progress = run.progress;
 
   // El marcador se apunta en la misma escritura que el movimiento, así que el
   // filtro por `version` también lo protege de contarse dos veces.
@@ -79,5 +80,24 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   }
 
   await broadcastGameUpdate(row.code);
-  return NextResponse.json({ view: toPlayerView(data as GameRow, side) });
+
+  const saved = data as GameRow;
+  // Sólo se guarda la posición final, pero se devuelve el camino hasta ella:
+  // primero tu jugada y después cada una del bot, la última incluida. El
+  // cliente las enseña con pausa, que si no una cadena de capturas se ve como
+  // un salto sin más.
+  const replay = [result, ...run.steps].map((step) =>
+    toPlayerView(
+      {
+        ...saved,
+        state: step.state,
+        turn: step.turn,
+        winner: step.winner,
+        status: step.finished ? "finished" : "playing",
+      },
+      side,
+    ),
+  );
+
+  return NextResponse.json({ view: toPlayerView(saved, side), replay });
 }

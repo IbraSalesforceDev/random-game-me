@@ -111,6 +111,10 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
   return <Waiting message="Preparando la partida…" />;
 }
 
+/** Pausa entre jugadas del bot: lo justo para seguirlas con la vista. */
+const STEP_MS = 620;
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
 const OUTCOME = {
   won: { emoji: "🏆", title: "¡Has ganado!", box: "bg-emerald-400 text-sea-950" },
   lost: { emoji: "💥", title: "Has perdido", box: "bg-sunk text-foam" },
@@ -118,7 +122,7 @@ const OUTCOME = {
 } as const;
 
 export default function GameClient({ code }: { code: string }) {
-  const { view, setView, error, setError, ready, refresh } = useGame(code);
+  const { view, setView, error, setError, ready, refresh, freeze } = useGame(code);
   const [notice, setNotice] = useState<string | null>(null);
 
   const guard = async (action: () => Promise<void>) => {
@@ -156,7 +160,30 @@ export default function GameClient({ code }: { code: string }) {
     );
   }
 
-  const move = (m: unknown) => guard(async () => setView(await sendMove(code, m)));
+  // El bot juega toda su tanda dentro de una petición, así que el servidor
+  // devuelve el camino recorrido. Se enseña paso a paso: si no, una cadena de
+  // capturas aparecería resuelta de golpe y no se vería lo que ha pasado.
+  const move = (m: unknown) =>
+    guard(async () => {
+      const { view: final, replay } = await sendMove(code, m);
+
+      if (replay.length <= 1) {
+        setView(final);
+        return;
+      }
+
+      freeze(true);
+      try {
+        for (const [i, step] of replay.entries()) {
+          setView(step);
+          // La pausa va entre jugadas, no después de la última.
+          if (i < replay.length - 1) await sleep(STEP_MS);
+        }
+      } finally {
+        freeze(false);
+      }
+      setView(final);
+    });
   const outcome = view.outcome ? OUTCOME[view.outcome] : null;
 
   return (

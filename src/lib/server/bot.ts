@@ -17,15 +17,26 @@ const MAX_TURNS = 200;
  * cuando el juego encadena —una cadena de capturas, un tiro extra por
  * acertar—, así que se repite hasta que le toque al humano o se acabe.
  */
+export type BotRun = {
+  /** Cómo queda la partida al terminar el bot. Es lo que se guarda. */
+  progress: Progress;
+  /**
+   * Una entrada por jugada del bot. El cliente las reproduce con pausa para
+   * que se vea la cadena, en vez de saltar de golpe al resultado.
+   */
+  steps: Progress[];
+};
+
 export function playBotTurns(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   module: GameModule<any, any>,
   botSide: Side,
   level: BotLevel,
   from: Progress,
-): Progress {
-  if (!module.bot) return from;
+): BotRun {
+  if (!module.bot) return { progress: from, steps: [] };
 
+  const steps: Progress[] = [];
   let progress = from;
   for (let i = 0; i < MAX_TURNS; i++) {
     if (progress.finished) break;
@@ -48,7 +59,8 @@ export function playBotTurns(
       winner: result.winner,
       finished: result.finished,
     };
+    steps.push(progress);
   }
 
-  return progress;
+  return { progress, steps };
 }

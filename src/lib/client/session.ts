@@ -64,9 +64,15 @@ async function post(code: string, path: string, payload: Record<string, unknown>
 export const chooseGame = (code: string, game: string) =>
   post(code, "choose", { game }).then((b) => b.view as PlayerView);
 
-/** Envía un movimiento. Su forma la define cada juego. */
+/**
+ * Envía un movimiento. Además del estado final devuelve `replay`: tu jugada y
+ * las del bot una a una, para poder enseñarlas con pausa.
+ */
 export const sendMove = (code: string, move: unknown) =>
-  post(code, "move", { move }).then((b) => b.view as PlayerView);
+  post(code, "move", { move }).then((b) => ({
+    view: b.view as PlayerView,
+    replay: (b.replay ?? []) as PlayerView[],
+  }));
 
 /** `replay` repite el mismo juego; sin él se vuelve al selector. */
 export const requestRematch = (code: string, replay = false) =>
