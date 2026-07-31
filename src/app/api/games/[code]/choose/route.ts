@@ -30,7 +30,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const botSide = botSideOf(row);
   const opening = { state: module.createState(), turn: module.initialTurn(), winner: null, finished: false };
   const start =
-    botSide && row.bot_level ? playBotTurns(module, botSide, row.bot_level, opening) : opening;
+    botSide && row.bot_level
+      ? playBotTurns(module, botSide, row.bot_level, opening).progress
+      : opening;
 
   // El filtro por `version` resuelve el empate si los dos eligen a la vez:
   // gana quien llegue primero y el otro recibe la partida ya empezada.

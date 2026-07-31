@@ -29,9 +29,12 @@ export function useGame(code: string) {
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const inFlight = useRef(false);
+  // Mientras se reproduce la jugada del bot no se refresca: si no, el sondeo
+  // adelantaría el resultado final y se perdería la animación.
+  const frozen = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (inFlight.current) return;
+    if (inFlight.current || frozen.current) return;
     inFlight.current = true;
     try {
       setView(await fetchState(code));
@@ -90,5 +93,9 @@ export function useGame(code: string) {
     };
   }, [code, refresh, ready]);
 
-  return { view, setView, error, setError, ready, refresh };
+  const freeze = useCallback((on: boolean) => {
+    frozen.current = on;
+  }, []);
+
+  return { view, setView, error, setError, ready, refresh, freeze };
 }

@@ -38,7 +38,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
     : null;
   const start =
     module && opening && botSide && game.bot_level
-      ? playBotTurns(module, botSide, game.bot_level, opening)
+      ? playBotTurns(module, botSide, game.bot_level, opening).progress
       : opening;
 
   const patch = module && start
