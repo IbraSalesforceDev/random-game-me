@@ -65,7 +65,16 @@ function Waiting({ message }: { message: string }) {
 }
 
 /** Reparte la partida en curso al componente del juego elegido. */
-function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Promise<void> }) {
+function ActiveGame({
+  view,
+  move,
+  thinking,
+}: {
+  view: PlayerView;
+  move: (m: unknown) => Promise<void>;
+  /** El bot está a media tanda: lo avisan los carteles de turno. */
+  thinking: boolean;
+}) {
   if (view.game === "battleship") {
     const game = view.gameView as BattleshipView;
     if (game.phase === "placing") {
@@ -75,7 +84,14 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
         <Placement onConfirm={(ships: Ship[]) => move({ type: "ships", ships })} />
       );
     }
-    return <Play view={view} game={game} onFire={(x, y) => move({ type: "fire", x, y })} />;
+    return (
+      <Play
+        view={view}
+        game={game}
+        thinking={thinking}
+        onFire={(x, y) => move({ type: "fire", x, y })}
+      />
+    );
   }
 
   if (view.game === "connect4") {
@@ -83,6 +99,7 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
       <Connect4
         view={view}
         game={view.gameView as Connect4View}
+        thinking={thinking}
         onDrop={(col) => move({ type: "drop", col })}
       />
     );
@@ -93,6 +110,7 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
       <Checkers
         view={view}
         game={view.gameView as CheckersView}
+        thinking={thinking}
         onMove={(from, to) => move({ type: "move", from, to })}
       />
     );
@@ -103,6 +121,7 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
       <TicTacToe
         view={view}
         game={view.gameView as TicTacToeView}
+        thinking={thinking}
         onMark={(cell) => move({ type: "mark", cell })}
       />
     );
@@ -111,8 +130,15 @@ function ActiveGame({ view, move }: { view: PlayerView; move: (m: unknown) => Pr
   return <Waiting message="Preparando la partida…" />;
 }
 
-/** Pausa entre jugadas del bot: lo justo para seguirlas con la vista. */
-const STEP_MS = 620;
+/**
+ * Lo que el bot «tarda en pensar» su primera jugada. Va aparte de la pausa
+ * entre encadenadas: cuando sólo contesta una vez —el tres en raya, el conecta
+ * 4— no hay nada que seguir con la vista, y una respuesta demasiado pegada a
+ * la tuya no llega a leerse como el turno del rival.
+ */
+const THINK_MS = 1000;
+/** Pausa entre jugadas encadenadas, con el turno ya claramente suyo. */
+const CHAIN_MS = 620;
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
 const OUTCOME = {
@@ -124,6 +150,7 @@ const OUTCOME = {
 export default function GameClient({ code }: { code: string }) {
   const { view, setView, error, setError, ready, refresh, freeze } = useGame(code);
   const [notice, setNotice] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
 
   const guard = async (action: () => Promise<void>) => {
     try {
@@ -173,13 +200,16 @@ export default function GameClient({ code }: { code: string }) {
       }
 
       freeze(true);
+      setThinking(true);
       try {
         for (const [i, step] of replay.entries()) {
           setView(step);
-          // La pausa va entre jugadas, no después de la última.
-          if (i < replay.length - 1) await sleep(STEP_MS);
+          // La pausa va entre jugadas, no después de la última: tu propia
+          // jugada tiene que pintarse al momento.
+          if (i < replay.length - 1) await sleep(i === 0 ? THINK_MS : CHAIN_MS);
         }
       } finally {
+        setThinking(false);
         freeze(false);
       }
       setView(final);
@@ -212,7 +242,7 @@ export default function GameClient({ code }: { code: string }) {
         />
       )}
 
-      {view.status === "playing" && <ActiveGame view={view} move={move} />}
+      {view.status === "playing" && <ActiveGame view={view} move={move} thinking={thinking} />}
 
       {view.status === "finished" && outcome && (
         <div className="flex flex-col gap-5">

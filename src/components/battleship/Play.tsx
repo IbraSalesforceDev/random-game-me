@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Board, { type CellMark } from "@/components/battleship/Board";
+import Thinking from "@/components/Thinking";
 import { cellKey, coordLabel, FLEET, type Ship, shipCells, shipKind } from "@/lib/games/battleship/rules";
 import type { BattleshipView } from "@/lib/games/battleship/module";
 import type { PlayerView } from "@/lib/server/games";
@@ -12,6 +13,7 @@ type Props = {
   /** Estado del juego filtrado para este jugador. */
   game: BattleshipView;
   onFire: (x: number, y: number) => Promise<void>;
+  thinking: boolean;
 };
 
 /** Vibra si el móvil lo permite. En iPhone no existe y no pasa nada. */
@@ -76,7 +78,7 @@ function FleetStatus({ sunkIds, title }: { sunkIds: string[]; title: string }) {
   );
 }
 
-export default function Play({ view, game, onFire }: Props) {
+export default function Play({ view, game, onFire, thinking }: Props) {
   const [target, setTarget] = useState<{ x: number; y: number } | null>(null);
   const [firing, setFiring] = useState(false);
 
@@ -129,11 +131,18 @@ export default function Play({ view, game, onFire }: Props) {
     <div className="flex flex-col gap-3">
       <div
         className={[
-          "rounded-xl px-4 py-3 text-center font-bold transition-colors",
+          "flex items-center justify-center rounded-xl px-4 py-3 text-center font-bold transition-colors",
           view.yourTurn ? "bg-emerald-400 text-sea-950" : "bg-sea-800 text-foam/70",
         ].join(" ")}
       >
-        {view.yourTurn ? "Tu turno — ¡dispara!" : "Turno del rival…"}
+        {view.yourTurn ? (
+          "Tu turno — ¡dispara!"
+        ) : (
+          <>
+            Turno del rival
+            <Thinking active={thinking} />
+          </>
+        )}
       </div>
 
       {lastAgainstYou && (
@@ -142,9 +151,12 @@ export default function Play({ view, game, onFire }: Props) {
           key={receivedCount}
           className={[
             "rounded-xl px-4 py-3 text-center",
+            // El fallo llevaba el mismo `bg-sea-800` que el cartel de turno de
+            // aquí encima: dos cajas iguales seguidas y no se notaba que había
+            // pasado nada. Tono agua y borde propio para que se distinga.
             lastAgainstYou.hit
               ? `animate-alert-hit ${sankYourShip ? "bg-sunk" : "bg-hit/85"} text-white`
-              : "animate-alert bg-sea-800 text-foam/75",
+              : "animate-alert bg-sea-500/25 text-foam ring-1 ring-sea-500/80",
           ].join(" ")}
         >
           <p className="font-bold">
@@ -155,7 +167,11 @@ export default function Play({ view, game, onFire }: Props) {
                 : "💧 El rival ha fallado"}
           </p>
           <p className="text-sm opacity-80">
-            Te dispararon a {coordLabel(lastAgainstYou.x, lastAgainstYou.y)}
+            Te dispararon a{" "}
+            <span className="font-mono font-bold tracking-wider">
+              {coordLabel(lastAgainstYou.x, lastAgainstYou.y)}
+            </span>
+            , marcado en tu flota
           </p>
         </div>
       )}
@@ -189,7 +205,11 @@ export default function Play({ view, game, onFire }: Props) {
         <h2 className="text-sm font-semibold text-foam/70">Tu flota</h2>
         {/* Más pequeño que el rival: sólo hay que consultarlo, no se toca. */}
         <div className="mx-auto w-4/5">
-          <Board marks={ownMarks(game)} compact />
+          <Board
+            marks={ownMarks(game)}
+            highlight={lastAgainstYou ? { x: lastAgainstYou.x, y: lastAgainstYou.y } : null}
+            compact
+          />
         </div>
         <FleetStatus sunkIds={game.yourSunk} title="Tus barcos:" />
       </section>
