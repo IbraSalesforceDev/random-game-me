@@ -5,8 +5,8 @@ código de 4 letras, el otro entra y entre los dos eligen a qué jugar. Sin
 registro ni instalación.
 
 Ahora mismo hay **tres en raya**, **conecta 4**, **damas** y **hundir la flota**.
-Y si no hay rival a mano, se puede jugar **contra el bot** en tres niveles
-(en todos menos en el hundir la flota, de momento).
+Y si no hay rival a mano, se puede jugar **contra el bot** en tres niveles, en
+los cuatro.
 
 **Stack:** Next.js (App Router) en Vercel + Supabase (Postgres y Realtime).
 
@@ -56,7 +56,7 @@ flota, en el hundir la flota— y con eso se cae todo el diseño de privacidad.
 Además el contador `version` que ya evita jugadas duplicadas cubre gratis la
 del bot.
 
-El motor es un minimax con poda alfa-beta compartido
+Los tres juegos de tablero comparten un motor de minimax con poda alfa-beta
 ([`src/lib/games/bot/minimax.ts`](src/lib/games/bot/minimax.ts)). No asume que
 los turnos se alternen: cada jugada devuelve a quién le toca, así que una
 cadena de capturas o un tiro extra encajan sin tocar nada. Cada juego sólo
@@ -65,6 +65,14 @@ aporta su función de evaluación.
 La dificultad son dos números: cuántas jugadas mira por delante y con qué
 probabilidad tira al azar a propósito. En el tres en raya, que es un juego
 resuelto, el nivel difícil es matemáticamente imbatible.
+
+El hundir la flota no usa el motor: ahí no hay árbol que explorar, sino un
+tablero oculto sobre el que deducir. Busca por mapa de probabilidad —dónde
+caben más de los barcos que quedan, descartando el agua confirmada y el anillo
+de los ya hundidos— y en cuanto toca algo, persigue: si tiene dos impactos en
+línea alarga la línea, y si sólo hay uno tantea sus costados. El bot recibe el
+mismo `toView` que un jugador humano, así que no puede ver la flota rival ni
+por descuido.
 
 Una sala en solitario es una sala normal: el hueco de invitado lo ocupa el bot,
 así que revancha, marcador y cambio de juego funcionan sin nada especial.

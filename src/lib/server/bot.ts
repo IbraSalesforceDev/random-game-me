@@ -28,7 +28,11 @@ export function playBotTurns(
 
   let progress = from;
   for (let i = 0; i < MAX_TURNS; i++) {
-    if (progress.finished || progress.turn !== botSide) break;
+    if (progress.finished) break;
+    // Actúa en su turno y también cuando no hay turno de nadie: colocar la
+    // flota es una fase sin turnos en la que los dos jugadores preparan a la
+    // vez. Si no tiene nada que hacer, el propio bot devuelve null y se corta.
+    if (progress.turn !== null && progress.turn !== botSide) break;
 
     const move = module.bot(progress.state, botSide, level);
     if (!move) break;
