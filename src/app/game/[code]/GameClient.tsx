@@ -137,8 +137,14 @@ function ActiveGame({
  * la tuya no llega a leerse como el turno del rival.
  */
 const THINK_MS = 1000;
-/** Pausa entre jugadas encadenadas, con el turno ya claramente suyo. */
-const CHAIN_MS = 620;
+/**
+ * Pausa entre jugadas encadenadas. En las damas una cadena de capturas es un
+ * mismo movimiento seguido y ese ritmo va bien, pero en el hundir la flota
+ * cada disparo extra es una decisión aparte: encadenados así parecían una
+ * ráfaga y no un rival apuntando otra vez.
+ */
+const CHAIN_MS: Record<string, number> = { battleship: 1000 };
+const DEFAULT_CHAIN_MS = 620;
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
 const OUTCOME = {
@@ -199,6 +205,8 @@ export default function GameClient({ code }: { code: string }) {
         return;
       }
 
+      const chainMs = CHAIN_MS[view.game ?? ""] ?? DEFAULT_CHAIN_MS;
+
       freeze(true);
       setThinking(true);
       try {
@@ -206,7 +214,7 @@ export default function GameClient({ code }: { code: string }) {
           setView(step);
           // La pausa va entre jugadas, no después de la última: tu propia
           // jugada tiene que pintarse al momento.
-          if (i < replay.length - 1) await sleep(i === 0 ? THINK_MS : CHAIN_MS);
+          if (i < replay.length - 1) await sleep(i === 0 ? THINK_MS : chainMs);
         }
       } finally {
         setThinking(false);
