@@ -33,9 +33,11 @@ export type GameModule<S = unknown, M = unknown> = {
 
   /**
    * Turno inicial. `null` cuando el juego arranca con una fase sin turnos,
-   * como colocar la flota, en la que los dos actúan a la vez.
+   * como colocar la flota, en la que los dos actúan a la vez. Recibe el estado
+   * recién creado porque hay juegos donde quién sale depende del reparto: en
+   * el dominó abre quien tenga el doble más alto.
    */
-  initialTurn(): Side | null;
+  initialTurn(state: S): Side | null;
 
   /**
    * Estado tal y como puede verlo un jugador. Aquí es donde se oculta lo que

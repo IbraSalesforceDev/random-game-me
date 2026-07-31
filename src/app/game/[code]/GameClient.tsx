@@ -6,6 +6,7 @@ import Placement from "@/components/battleship/Placement";
 import Play from "@/components/battleship/Play";
 import Checkers from "@/components/checkers/Checkers";
 import Connect4 from "@/components/connect4/Connect4";
+import Domino from "@/components/domino/Domino";
 import GamePicker from "@/components/GamePicker";
 import Scoreboard from "@/components/Scoreboard";
 import TicTacToe from "@/components/tictactoe/TicTacToe";
@@ -15,6 +16,8 @@ import type { BattleshipView } from "@/lib/games/battleship/module";
 import type { Ship } from "@/lib/games/battleship/rules";
 import type { CheckersView } from "@/lib/games/checkers/module";
 import type { Connect4View } from "@/lib/games/connect4/module";
+import type { DominoView } from "@/lib/games/domino/module";
+import type { End, Tile } from "@/lib/games/domino/rules";
 import type { TicTacToeView } from "@/lib/games/tictactoe/module";
 import { BOT_LABEL } from "@/lib/games/types";
 import type { PlayerView } from "@/lib/server/games";
@@ -105,6 +108,19 @@ function ActiveGame({
     );
   }
 
+  if (view.game === "domino") {
+    return (
+      <Domino
+        view={view}
+        game={view.gameView as DominoView}
+        thinking={thinking}
+        onPlay={(tile: Tile, end: End) => move({ type: "play", tile, end })}
+        onDraw={() => move({ type: "draw" })}
+        onPass={() => move({ type: "pass" })}
+      />
+    );
+  }
+
   if (view.game === "checkers") {
     return (
       <Checkers
@@ -143,7 +159,7 @@ const THINK_MS = 1000;
  * cada disparo extra es una decisión aparte: encadenados así parecían una
  * ráfaga y no un rival apuntando otra vez.
  */
-const CHAIN_MS: Record<string, number> = { battleship: 1000 };
+const CHAIN_MS: Record<string, number> = { battleship: 1000, domino: 1000 };
 const DEFAULT_CHAIN_MS = 620;
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 

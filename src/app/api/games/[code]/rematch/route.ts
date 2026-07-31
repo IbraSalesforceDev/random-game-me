@@ -33,8 +33,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
 
   // Si el bot abre la revancha, deja hecha su jugada antes de guardar.
   const botSide = botSideOf(game);
+  const fresh = module?.createState();
   const opening = module
-    ? { state: module.createState(), turn: module.initialTurn(), winner: null, finished: false }
+    ? { state: fresh, turn: module.initialTurn(fresh), winner: null, finished: false }
     : null;
   const start =
     module && opening && botSide && game.bot_level

@@ -28,7 +28,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
 
   // Si el bot abre, deja hecha su jugada antes de guardar.
   const botSide = botSideOf(row);
-  const opening = { state: module.createState(), turn: module.initialTurn(), winner: null, finished: false };
+  const fresh = module.createState();
+  const opening = { state: fresh, turn: module.initialTurn(fresh), winner: null, finished: false };
   const start =
     botSide && row.bot_level
       ? playBotTurns(module, botSide, row.bot_level, opening).progress
