@@ -12,6 +12,9 @@
   /* Gris claro a propósito: el agua ya es azul oscuro y un tono apagado
      hacía que un disparo fallado se confundiera con una casilla intacta. */
   --color-miss: #94a3b8;
+  /* Azul de gota, para los avisos de agua: el resto de la paleta tira a
+     marino y sobre el fondo no destaca. */
+  --color-water: #38bdf8;
 }
 
 html,
@@ -91,6 +94,31 @@ button {
 }
 
 /*
+ * El fallo no puede sacudirse como el impacto —no ha pasado nada grave— pero
+ * quieto no se ve: es agua sobre agua. Late entre dos azules para que el
+ * cambio te lleve la vista arriba, y se queda en el tono suave.
+ */
+@keyframes alert-water {
+  0%,
+  30%,
+  60%,
+  100% {
+    background-color: rgb(56 189 248 / 0.18);
+  }
+  15%,
+  45%,
+  75% {
+    background-color: rgb(56 189 248 / 0.62);
+  }
+}
+
+.animate-alert-miss {
+  animation:
+    alert-in 200ms ease-out,
+    alert-water 1.5s 120ms ease-in-out;
+}
+
+/*
  * Marca de «esto es lo último que ha pasado». Parpadea unas cuantas veces
  * para llevarte la vista y se queda puesta, que si no hay que ir comparando
  * el tablero de memoria. Va sobre un elemento aparte, encima de la casilla:
@@ -139,6 +167,7 @@ button {
   .animate-splash,
   .animate-alert,
   .animate-alert-hit,
+  .animate-alert-miss,
   .animate-last-move,
   .animate-think > * {
     animation: none;

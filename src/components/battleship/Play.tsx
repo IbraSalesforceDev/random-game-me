@@ -151,12 +151,13 @@ export default function Play({ view, game, onFire, thinking }: Props) {
           key={receivedCount}
           className={[
             "rounded-xl px-4 py-3 text-center",
-            // El fallo llevaba el mismo `bg-sea-800` que el cartel de turno de
-            // aquí encima: dos cajas iguales seguidas y no se notaba que había
-            // pasado nada. Tono agua y borde propio para que se distinga.
+            // El fallo llevaba el mismo `bg-sea-800` del que arranca el fondo
+            // de la página: una caja invisible sobre su propio color. Ahora es
+            // azul de gota y late entre dos tonos, porque quieto seguía siendo
+            // agua sobre agua y la vista no subía hasta aquí.
             lastAgainstYou.hit
               ? `animate-alert-hit ${sankYourShip ? "bg-sunk" : "bg-hit/85"} text-white`
-              : "animate-alert bg-sea-500/25 text-foam ring-1 ring-sea-500/80",
+              : "animate-alert-miss bg-water/[0.18] text-foam ring-1 ring-water/70",
           ].join(" ")}
         >
           <p className="font-bold">
