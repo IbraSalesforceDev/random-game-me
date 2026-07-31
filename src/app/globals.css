@@ -9,7 +9,9 @@
   --color-foam: #e6f4ff;
   --color-hit: #ef4444;
   --color-sunk: #7f1d1d;
-  --color-miss: #64748b;
+  /* Gris claro a propósito: el agua ya es azul oscuro y un tono apagado
+     hacía que un disparo fallado se confundiera con una casilla intacta. */
+  --color-miss: #94a3b8;
 }
 
 html,
@@ -88,10 +90,57 @@ button {
     alert-shake 420ms 170ms ease-in-out;
 }
 
+/*
+ * Marca de «esto es lo último que ha pasado». Parpadea unas cuantas veces
+ * para llevarte la vista y se queda puesta, que si no hay que ir comparando
+ * el tablero de memoria. Va sobre un elemento aparte, encima de la casilla:
+ * animar `box-shadow` aquí pisaría los anillos de Tailwind, que usan esa
+ * misma propiedad.
+ */
+@keyframes last-move {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.1;
+  }
+}
+
+.animate-last-move {
+  animation: last-move 850ms ease-in-out 3;
+}
+
+/* Los tres puntos de «está pensando» del cartel de turno. */
+@keyframes think-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+.animate-think > * {
+  animation: think-dot 1.1s ease-in-out infinite;
+}
+
+.animate-think > *:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.animate-think > *:nth-child(3) {
+  animation-delay: 300ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-splash,
   .animate-alert,
-  .animate-alert-hit {
+  .animate-alert-hit,
+  .animate-last-move,
+  .animate-think > * {
     animation: none;
   }
 }

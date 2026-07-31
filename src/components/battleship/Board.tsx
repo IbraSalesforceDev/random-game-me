@@ -30,11 +30,24 @@ type Props = {
   onCell?: (x: number, y: number) => void;
   selected?: { x: number; y: number } | null;
   disabled?: boolean;
+  /**
+   * Casilla a señalar por ser lo último que ha pasado. En tu propio tablero
+   * todos los disparos recibidos se pintan igual, así que sin esto hay que
+   * mirar cuál es el nuevo comparando de memoria.
+   */
+  highlight?: { x: number; y: number } | null;
   /** Versión pequeña, para el tablero propio durante la partida. */
   compact?: boolean;
 };
 
-export default function Board({ marks, onCell, selected, disabled, compact }: Props) {
+export default function Board({
+  marks,
+  onCell,
+  selected,
+  disabled,
+  highlight,
+  compact,
+}: Props) {
   const cells: React.ReactNode[] = [];
 
   for (let y = 0; y < BOARD_SIZE; y++) {
@@ -42,6 +55,7 @@ export default function Board({ marks, onCell, selected, disabled, compact }: Pr
       const key = cellKey(x, y);
       const mark = marks[key] ?? "empty";
       const isSelected = selected?.x === x && selected?.y === y;
+      const isLast = !isSelected && highlight?.x === x && highlight?.y === y;
 
       cells.push(
         <button
@@ -58,12 +72,15 @@ export default function Board({ marks, onCell, selected, disabled, compact }: Pr
           ].join(" ")}
         >
           {mark === "miss" && (
-            <span className="animate-splash absolute inset-0 m-auto size-1/3 rounded-full bg-miss" />
+            <span className="animate-splash absolute inset-0 m-auto size-2/5 rounded-full bg-miss" />
           )}
           {(mark === "hit" || mark === "sunk") && (
             <span className="animate-splash absolute inset-0 grid place-items-center text-[0.6em] leading-none">
               {mark === "sunk" ? "☠" : "✕"}
             </span>
+          )}
+          {isLast && (
+            <span className="animate-last-move pointer-events-none absolute -inset-px z-10 rounded-[3px] border-2 border-foam" />
           )}
         </button>,
       );

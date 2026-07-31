@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Thinking from "@/components/Thinking";
 import type { Connect4View } from "@/lib/games/connect4/module";
 import { COLUMNS, dropRow, ROWS } from "@/lib/games/connect4/rules";
 import type { PlayerView } from "@/lib/server/games";
@@ -10,6 +11,7 @@ type Props = {
   view: PlayerView;
   game: Connect4View;
   onDrop: (col: number) => Promise<void>;
+  thinking: boolean;
 };
 
 function buzz(pattern: number | number[]) {
@@ -23,7 +25,7 @@ const DISC: Record<Side, string> = {
   guest: "bg-rose-500",
 };
 
-export default function Connect4({ view, game, onDrop }: Props) {
+export default function Connect4({ view, game, onDrop, thinking }: Props) {
   const you = view.you;
   const rival: Side = you === "host" ? "guest" : "host";
   const winning = new Set((game.winningLine ?? []).map((c) => `${c.col},${c.row}`));
@@ -46,7 +48,14 @@ export default function Connect4({ view, game, onDrop }: Props) {
         ].join(" ")}
       >
         <span className={`size-4 rounded-full ${DISC[view.yourTurn ? you : rival]}`} />
-        {view.yourTurn ? "Tu turno — suelta ficha" : "Turno del rival…"}
+        {view.yourTurn ? (
+          "Tu turno — suelta ficha"
+        ) : (
+          <>
+            Turno del rival
+            <Thinking active={thinking} />
+          </>
+        )}
       </div>
 
       <div className="rounded-2xl bg-sea-700/60 p-2 ring-1 ring-sea-500/40">
@@ -71,12 +80,17 @@ export default function Connect4({ view, game, onDrop }: Props) {
                     <span
                       key={row}
                       className={[
-                        "aspect-square w-full rounded-full transition-colors",
+                        "relative aspect-square w-full rounded-full transition-colors",
                         cell ? DISC[cell] : "bg-sea-950/70",
                         isWinning ? "ring-2 ring-foam" : "",
-                        isLast && !isWinning ? "ring-2 ring-foam/50" : "",
                       ].join(" ")}
-                    />
+                    >
+                      {/* Aro sobre la última ficha soltada: con el tablero a
+                          medias, saber que ha caído una no basta para ver dónde. */}
+                      {isLast && !isWinning && (
+                        <span className="animate-last-move pointer-events-none absolute -inset-0.5 rounded-full border-2 border-foam" />
+                      )}
+                    </span>
                   );
                 })}
               </button>

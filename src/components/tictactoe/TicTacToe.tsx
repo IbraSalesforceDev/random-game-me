@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Thinking from "@/components/Thinking";
 import type { TicTacToeView } from "@/lib/games/tictactoe/module";
 import { cellLabel, CELLS } from "@/lib/games/tictactoe/rules";
 import type { Side } from "@/lib/games/types";
@@ -10,6 +11,7 @@ type Props = {
   view: PlayerView;
   game: TicTacToeView;
   onMark: (cell: number) => Promise<void>;
+  thinking: boolean;
 };
 
 function buzz(pattern: number | number[]) {
@@ -21,7 +23,7 @@ function buzz(pattern: number | number[]) {
 const MARK: Record<Side, string> = { host: "✕", guest: "◯" };
 const MARK_COLOR: Record<Side, string> = { host: "text-amber-300", guest: "text-rose-400" };
 
-export default function TicTacToe({ view, game, onMark }: Props) {
+export default function TicTacToe({ view, game, onMark, thinking }: Props) {
   const you = view.you;
   const rival: Side = you === "host" ? "guest" : "host";
   const winning = new Set(game.winningLine ?? []);
@@ -44,7 +46,14 @@ export default function TicTacToe({ view, game, onMark }: Props) {
         ].join(" ")}
       >
         <span className="text-xl leading-none">{MARK[view.yourTurn ? you : rival]}</span>
-        {view.yourTurn ? "Tu turno" : "Turno del rival…"}
+        {view.yourTurn ? (
+          "Tu turno"
+        ) : (
+          <>
+            Turno del rival
+            <Thinking active={thinking} />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 rounded-2xl bg-sea-700/60 p-2 ring-1 ring-sea-500/40">
@@ -58,14 +67,18 @@ export default function TicTacToe({ view, game, onMark }: Props) {
               onClick={() => onMark(i)}
               aria-label={cellLabel(i)}
               className={[
-                "grid aspect-square place-items-center rounded-xl text-5xl font-black transition-colors",
+                "relative grid aspect-square place-items-center rounded-xl text-5xl font-black transition-colors",
                 owner ? MARK_COLOR[owner] : "text-transparent",
                 winning.has(i) ? "bg-emerald-400/25 ring-2 ring-emerald-300" : "bg-sea-950/70",
-                game.lastMove === i && !winning.has(i) ? "ring-2 ring-foam/40" : "",
                 playable && !owner ? "active:bg-sea-800" : "",
               ].join(" ")}
             >
               {owner ? MARK[owner] : "·"}
+              {/* Recuadro sobre la última jugada: en un tablero medio lleno
+                  no basta con que aparezca una ficha, hay que ver cuál. */}
+              {game.lastMove === i && !winning.has(i) && (
+                <span className="animate-last-move pointer-events-none absolute inset-0 rounded-xl border-2 border-foam/80" />
+              )}
             </button>
           );
         })}

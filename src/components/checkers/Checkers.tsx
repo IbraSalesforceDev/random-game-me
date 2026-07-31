@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Thinking from "@/components/Thinking";
 import type { CheckersView } from "@/lib/games/checkers/module";
 import {
   CELLS,
@@ -17,6 +18,7 @@ type Props = {
   view: PlayerView;
   game: CheckersView;
   onMove: (from: number, to: number) => Promise<void>;
+  thinking: boolean;
 };
 
 function buzz(pattern: number | number[]) {
@@ -43,7 +45,7 @@ const PIECE: Record<Side, { fill: string; ring: string; dot: string }> = {
   },
 };
 
-export default function Checkers({ view, game, onMove }: Props) {
+export default function Checkers({ view, game, onMove, thinking }: Props) {
   const you = view.you;
   const rival: Side = you === "host" ? "guest" : "host";
   const [selected, setSelected] = useState<number | null>(null);
@@ -106,13 +108,20 @@ export default function Checkers({ view, game, onMove }: Props) {
         ].join(" ")}
       >
         <span className={`size-4 rounded-full ${PIECE[view.yourTurn ? you : rival].dot}`} />
-        {view.yourTurn
-          ? game.chainFrom !== null
-            ? "¡Sigue comiendo!"
-            : mustCapture
-              ? "Tu turno — comer es obligatorio"
-              : "Tu turno"
-          : "Turno del rival…"}
+        {view.yourTurn ? (
+          game.chainFrom !== null ? (
+            "¡Sigue comiendo!"
+          ) : mustCapture ? (
+            "Tu turno — comer es obligatorio"
+          ) : (
+            "Tu turno"
+          )
+        ) : (
+          <>
+            Turno del rival
+            <Thinking active={thinking} />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-8 gap-0 overflow-hidden rounded-xl ring-1 ring-sea-500/40">
