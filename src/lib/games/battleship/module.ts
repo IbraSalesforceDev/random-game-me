@@ -11,6 +11,7 @@ import {
   sunkShips,
   validateFleet,
 } from "@/lib/games/battleship/rules";
+import { battleshipBot } from "@/lib/games/battleship/bot";
 import { defineGame, type MoveResult, other, type Side } from "@/lib/games/types";
 
 /**
@@ -76,6 +77,8 @@ export const battleship = defineGame<BattleshipState, BattleshipMove>({
       opponentSunk: sunkShips(opponentShips, state.shots[side]),
     };
   },
+
+  bot: battleshipBot,
 
   applyMove(state, side, move): MoveResult<BattleshipState> {
     if (move?.type === "ships") return placeFleet(state, side, move.ships);
