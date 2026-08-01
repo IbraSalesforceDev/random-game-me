@@ -21,6 +21,10 @@ function buzz(pattern: number | number[]) {
   }
 }
 
+/** Medidas de una ficha tumbada, en píxeles, para calcular el plegado. */
+const TILE_W = 72;
+const GAP = 4;
+
 /** Posiciones de los puntos en una rejilla de 3×3, como en una ficha real. */
 const DOTS: Record<number, number[]> = {
   0: [],
@@ -51,7 +55,6 @@ function TileView({
   upright,
   marked,
   label,
-  ref,
   className = "",
 }: {
   tile: Tile;
@@ -60,12 +63,10 @@ function TileView({
   marked?: boolean;
   /** Para poder identificarla desde fuera; las de la mano ya van en su botón. */
   label?: string;
-  ref?: React.Ref<HTMLSpanElement>;
   className?: string;
 }) {
   return (
     <span
-      ref={ref}
       aria-label={label}
       className={[
         "relative flex shrink-0 rounded-md bg-slate-100 shadow-sm",
@@ -90,8 +91,8 @@ function TileView({
 export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }: Props) {
   const [selected, setSelected] = useState<Tile | null>(null);
   const [sending, setSending] = useState(false);
+  const [perRow, setPerRow] = useState(5);
   const chainRef = useRef<HTMLDivElement>(null);
-  const lastRef = useRef<HTMLSpanElement>(null);
 
   const playable = view.yourTurn && view.status === "playing" && !sending;
 
@@ -113,20 +114,23 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
   // una que ya se ha colocado.
   useEffect(() => setSelected(null), [view.updatedAt]);
 
-  // La cadena crece por los dos lados, así que se centra la última colocada.
-  //
-  // Las dependencias son valores sueltos a propósito. Con `game.lastPlay` el
-  // efecto saltaba en CADA sondeo —la vista se rehace y el objeto es nuevo
-  // aunque su contenido sea idéntico—, así que la cadena se iba sola al
-  // extremo cada tres segundos y no había manera de mirarla.
+  // Cuántas fichas caben por fila. Se mide en vez de fijarlo para que la
+  // cadena se pliegue bien en cualquier ancho de pantalla.
   useEffect(() => {
     const el = chainRef.current;
-    const ficha = lastRef.current;
-    if (!el || !ficha) return;
-    // Centrarla en la tira, sin tocar el scroll de la página.
-    const destino = ficha.offsetLeft - el.clientWidth / 2 + ficha.offsetWidth / 2;
-    el.scrollTo({ left: Math.max(0, destino), behavior: "smooth" });
-  }, [game.chain.length, game.lastPlay?.end]);
+    if (!el) return;
+    const medir = () => {
+      // `clientWidth` incluye el relleno de la caja: sin descontarlo salen
+      // fichas de más por fila y la cadena se sale por la derecha.
+      const css = getComputedStyle(el);
+      const util = el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+      setPerRow(Math.max(2, Math.floor((util + GAP) / (TILE_W + GAP))));
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const send = async (fn: () => Promise<void>) => {
     setSending(true);
@@ -153,6 +157,15 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
 
   const lastIndex =
     game.lastPlay === null ? -1 : game.lastPlay.end === "left" ? 0 : game.chain.length - 1;
+
+  // La cadena se parte en filas y las impares van al revés, que es como se
+  // dobla en una mesa. En recto, catorce fichas ocupan más de mil píxeles y en
+  // el móvil se ven trescientos ochenta: no se podían mirar las dos puntas a
+  // la vez, y las dos puntas son justo lo que hay que saber para decidir.
+  const filas: { desde: number; fichas: Tile[] }[] = [];
+  for (let i = 0; i < game.chain.length; i += perRow) {
+    filas.push({ desde: i, fichas: game.chain.slice(i, i + perRow) });
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -207,26 +220,51 @@ export default function Domino({ view, game, onPlay, onDraw, onPass, thinking }:
         <span>Tus puntos: {game.yourPips}</span>
       </div>
 
-      {/* La cadena en línea recta con scroll: la serpiente que dobla se lee
-          peor en un móvil y no aporta nada a la jugada. */}
+      {/* Las puntas, siempre a la vista: es lo único que necesitas para saber
+          qué te vale, y antes había que ir a buscarlas a la cadena. */}
+      {game.ends && (
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <span className="text-foam/55">Puntas</span>
+          <span className="min-w-8 rounded-md bg-sea-700 px-2.5 py-1 text-center font-bold tabular-nums ring-1 ring-sea-500/60">
+            {game.ends[0]}
+          </span>
+          <span className="text-foam/35">y</span>
+          <span className="min-w-8 rounded-md bg-sea-700 px-2.5 py-1 text-center font-bold tabular-nums ring-1 ring-sea-500/60">
+            {game.ends[1]}
+          </span>
+        </div>
+      )}
+
       <div
         ref={chainRef}
-        className="min-h-[3.25rem] overflow-x-auto rounded-xl bg-sea-900/60 p-2 ring-1 ring-sea-700/60"
+        className="min-h-[3.25rem] rounded-xl bg-sea-900/60 p-2 ring-1 ring-sea-700/60"
       >
         {game.chain.length === 0 ? (
           <p className="py-3 text-center text-sm text-foam/40">
             Sale la ficha más alta. Coloca la primera.
           </p>
         ) : (
-          <div className="flex w-max items-center gap-1">
-            {game.chain.map((tile, i) => (
-              <TileView
-                key={`${tile[0]}-${tile[1]}-${i}`}
-                ref={i === lastIndex ? lastRef : undefined}
-                tile={tile}
-                marked={i === lastIndex}
-                label={`Cadena ${tile[0]} ${tile[1]}`}
-              />
+          <div className="flex flex-col gap-1">
+            {filas.map((fila, r) => (
+              <div
+                key={fila.desde}
+                className={["flex gap-1", r % 2 === 1 ? "flex-row-reverse" : ""].join(" ")}
+              >
+                {fila.fichas.map((tile, k) => {
+                  const i = fila.desde + k;
+                  // En una fila que va de derecha a izquierda la ficha también
+                  // se ve girada; la etiqueta guarda el orden real de la cadena.
+                  const pintada: Tile = r % 2 === 1 ? [tile[1], tile[0]] : tile;
+                  return (
+                    <TileView
+                      key={i}
+                      tile={pintada}
+                      marked={i === lastIndex}
+                      label={`Cadena ${tile[0]} ${tile[1]}`}
+                    />
+                  );
+                })}
+              </div>
             ))}
           </div>
         )}
