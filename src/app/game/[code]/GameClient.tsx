@@ -7,6 +7,7 @@ import Play from "@/components/battleship/Play";
 import Checkers from "@/components/checkers/Checkers";
 import Connect4 from "@/components/connect4/Connect4";
 import Domino from "@/components/domino/Domino";
+import Dungeon from "@/components/dungeon/Dungeon";
 import GamePicker from "@/components/GamePicker";
 import Scoreboard from "@/components/Scoreboard";
 import TicTacToe from "@/components/tictactoe/TicTacToe";
@@ -18,6 +19,7 @@ import type { CheckersView } from "@/lib/games/checkers/module";
 import type { Connect4View } from "@/lib/games/connect4/module";
 import type { DominoView } from "@/lib/games/domino/module";
 import type { End, Tile } from "@/lib/games/domino/rules";
+import type { DungeonView } from "@/lib/games/dungeon/module";
 import type { TicTacToeView } from "@/lib/games/tictactoe/module";
 import { BOT_LABEL } from "@/lib/games/types";
 import type { PlayerView } from "@/lib/server/games";
@@ -117,6 +119,18 @@ function ActiveGame({
         onPlay={(tile: Tile, end: End) => move({ type: "play", tile, end })}
         onDraw={() => move({ type: "draw" })}
         onPass={() => move({ type: "pass" })}
+      />
+    );
+  }
+
+  if (view.game === "dungeon") {
+    return (
+      <Dungeon
+        view={view}
+        game={view.gameView as DungeonView}
+        thinking={thinking}
+        onAct={(to) => move({ type: "act", to })}
+        onWait={() => move({ type: "wait" })}
       />
     );
   }
