@@ -2,6 +2,7 @@ import { dungeonBot } from "@/lib/games/dungeon/bot";
 import {
   CELLS,
   CHEST_GOLD,
+  damage,
   generate,
   HERO_ATK,
   HERO_HP,
@@ -47,7 +48,7 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
     };
     reveal(seen.host, START.host);
     reveal(seen.guest, START.guest);
-    const hero = (pos: number) => ({ pos, hp: HERO_HP, atk: HERO_ATK, gold: 0 });
+    const hero = (pos: number) => ({ pos, hp: HERO_HP, atk: HERO_ATK, def: 0, gold: 0 });
     return {
       ...board,
       heroes: { host: hero(START.host), guest: hero(START.guest) },
@@ -82,6 +83,7 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
       gold: 0,
       healed: 0,
       sword: false,
+      shield: false,
       bumped: false,
       hit: null,
       hurt: 0,
@@ -120,6 +122,9 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
         } else if (item === "sword") {
           me.atk += 1;
           last.sword = true;
+        } else if (item === "shield") {
+          me.def += 1;
+          last.shield = true;
         }
         s.items[paso] = null;
       }
@@ -137,8 +142,9 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
           }
           last.hit = { what: monstruo.kind, dmg: me.atk, killed: muerto, at: to };
         } else if (to === rival.pos) {
-          rival.hp -= me.atk;
-          last.hit = { what: "hero", dmg: me.atk, killed: rival.hp <= 0, at: to };
+          const dmg = damage(me.atk, rival.def);
+          rival.hp -= dmg;
+          last.hit = { what: "hero", dmg, killed: rival.hp <= 0, at: to };
         }
       }
     } else if (move?.type !== "wait") {
@@ -148,7 +154,7 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
     // Los monstruos no se mueven, pero muerden a quien acabe el turno pegado.
     for (const n of neighbors(me.pos)) {
       const m = s.monsters[n];
-      if (m) last.hurt += MONSTER[m.kind].atk;
+      if (m) last.hurt += damage(MONSTER[m.kind].atk, me.def);
     }
     me.hp -= last.hurt;
     last.at = me.pos;
