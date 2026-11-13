@@ -20,6 +20,7 @@ export type LastTurn = {
   gold: number;
   healed: number;
   sword: boolean;
+  shield: boolean;
   /** Se topó con el rival a oscuras y tuvo que pararse. */
   bumped: boolean;
   hit: { what: MonsterKind | "hero"; dmg: number; killed: boolean; at: number } | null;
@@ -138,6 +139,7 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
     rival: {
       hp: rival.hp,
       atk: rival.atk,
+      def: rival.def,
       gold: rival.gold,
       pos: luz.has(rival.pos) ? rival.pos : null,
     },

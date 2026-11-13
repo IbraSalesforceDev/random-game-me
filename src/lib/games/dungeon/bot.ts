@@ -1,6 +1,7 @@
 import {
   CELLS,
   CHEST_GOLD,
+  damage,
   HERO_HP,
   lit,
   manhattan,
@@ -70,13 +71,15 @@ function distanciaAMetas(view: DungeonView, experto: boolean): number[] {
   const metas: number[] = [];
   cells.forEach((c, i) => {
     if (c.k !== "floor") return;
-    if (c.item === "gold" || c.item === "chest" || c.item === "sword") metas.push(i);
+    if (c.item === "gold" || c.item === "chest" || c.item === "sword" || c.item === "shield") {
+      metas.push(i);
+    }
     if (c.item === "potion" && you.hp <= HERO_HP - 3) metas.push(i);
     if (neighbors(i).some((n) => cells[n].k === "unknown")) metas.push(i);
     // Un monstruo es botín con dientes: sólo se busca con vida de sobra.
     const hueso = neighbors(i).some((n) => {
       const m = cells[n].monster;
-      return m && you.hp > MONSTER[m.kind].atk * 2 + (experto ? 2 : 0);
+      return m && you.hp > damage(MONSTER[m.kind].atk, you.def) * 2 + (experto ? 2 : 0);
     });
     if (hueso && !c.monster) metas.push(i);
   });
@@ -104,6 +107,7 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
   let nota = 0;
   let hp = you.hp;
   let atk = you.atk;
+  let def = you.def;
 
   // Lo que recoge por el camino.
   const nuevas = new Set<number>();
@@ -114,6 +118,9 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
     else if (item === "sword") {
       nota += 14;
       atk += 1;
+    } else if (item === "shield") {
+      nota += 14;
+      def += 1;
     } else if (item === "potion") {
       const cura = Math.min(POTION_HEAL, HERO_HP - hp);
       hp += cura;
@@ -137,8 +144,9 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
     } else {
       // Es el rival. Matarlo gana la partida; herirlo sólo compensa si se va
       // por delante en vida, y eso sólo lo mide el difícil.
-      if (atk >= rival.hp) return 1000;
-      nota += experto && hp > rival.hp ? atk * 6 : atk * 1.5;
+      const golpe = damage(atk, rival.def);
+      if (golpe >= rival.hp) return 1000;
+      nota += experto && hp > rival.hp ? golpe * 6 : golpe * 1.5;
     }
   }
 
@@ -146,7 +154,7 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
   let golpes = 0;
   for (const n of neighbors(fin)) {
     const m = cells[n].monster;
-    if (m && n !== muerto) golpes += MONSTER[m.kind].atk;
+    if (m && n !== muerto) golpes += damage(MONSTER[m.kind].atk, def);
   }
   if (hp - golpes <= 0) return -1000;
   nota -= golpes * (hp - golpes <= 4 ? 7 : 3.5);
@@ -155,7 +163,7 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
     // Acabar al alcance de un rival más fuerte es regalarle el turno.
     const aTiro = manhattan(fin, rival.pos) <= REACH;
     if (aTiro && rival.hp >= hp - golpes) nota -= 8;
-    if (aTiro && rival.atk >= hp - golpes) nota -= 200;
+    if (aTiro && damage(rival.atk, def) >= hp - golpes) nota -= 200;
   }
 
   // Y que el sitio donde acaba le deje cerca de lo siguiente.

@@ -1,9 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { IconType } from "react-icons";
+import {
+  GiBroadsword,
+  GiCheckedShield,
+  GiGoblinHead,
+  GiHealthPotion,
+  GiHearts,
+  GiHoodedAssassin,
+  GiLockedChest,
+  GiOrcHead,
+  GiRat,
+  GiSkeleton,
+  GiTwoCoins,
+  GiVisoredHelm,
+} from "react-icons/gi";
 import Thinking from "@/components/Thinking";
 import type { DungeonView } from "@/lib/games/dungeon/module";
-import { HERO_HP, type Item, MONSTER, type MonsterKind, W } from "@/lib/games/dungeon/rules";
+import { type Item, MONSTER, type MonsterKind, W } from "@/lib/games/dungeon/rules";
 import type { LastTurn, ViewCell } from "@/lib/games/dungeon/state";
 import type { PlayerView } from "@/lib/server/games";
 
@@ -21,8 +36,26 @@ function buzz(pattern: number | number[]) {
   }
 }
 
-const ITEM: Record<Item, string> = { gold: "🪙", potion: "🧪", sword: "🗡️", chest: "💰" };
-const BEAST: Record<MonsterKind, string> = { rat: "🐀", skeleton: "💀" };
+/**
+ * Iconos de game-icons.net (CC BY 3.0), de aire tablero de mazmorras. Cada
+ * cosa lleva su color para distinguirla de un vistazo en casillas pequeñas.
+ */
+type Glyph = { Icon: IconType; color: string };
+const ITEM: Record<Item, Glyph> = {
+  gold: { Icon: GiTwoCoins, color: "text-yellow-400" },
+  chest: { Icon: GiLockedChest, color: "text-amber-400" },
+  potion: { Icon: GiHealthPotion, color: "text-pink-400" },
+  sword: { Icon: GiBroadsword, color: "text-sky-300" },
+  shield: { Icon: GiCheckedShield, color: "text-indigo-300" },
+};
+const BEAST: Record<MonsterKind, Glyph> = {
+  rat: { Icon: GiRat, color: "text-amber-600" },
+  goblin: { Icon: GiGoblinHead, color: "text-lime-400" },
+  skeleton: { Icon: GiSkeleton, color: "text-slate-200" },
+  orc: { Icon: GiOrcHead, color: "text-orange-400" },
+};
+const YOU: Glyph = { Icon: GiVisoredHelm, color: "text-emerald-300" };
+const RIVAL: Glyph = { Icon: GiHoodedAssassin, color: "text-rose-400" };
 
 /** Cuenta en una frase lo último que pasó, desde el punto de vista de quien mira. */
 function relato(last: LastTurn, mine: boolean): string {
@@ -43,22 +76,43 @@ function relato(last: LastTurn, mine: boolean): string {
   if (last.gold) partes.push(`+${last.gold} de oro`);
   if (last.healed) partes.push(`+${last.healed} de vida`);
   if (last.sword) partes.push("espada: +1 de ataque");
+  if (last.shield) partes.push("escudo: +1 de defensa");
   if (last.hurt) partes.push(`te muerden: −${last.hurt} de vida`);
   if (partes.length === 0) return "";
   const frase = partes.join(" · ");
   return frase[0].toUpperCase() + frase.slice(1);
 }
 
-function Stats({ title, hp, atk, gold }: { title: string; hp: number; atk: number; gold: number }) {
+function Stats({
+  title,
+  hp,
+  atk,
+  def,
+  gold,
+}: {
+  title: string;
+  hp: number;
+  atk: number;
+  def: number;
+  gold: number;
+}) {
+  const dato = "flex items-center gap-1";
   return (
-    <div className="flex flex-1 flex-col gap-0.5 rounded-xl bg-sea-800/70 px-3 py-2 ring-1 ring-sea-700">
+    <div className="flex flex-1 flex-col gap-0.5 rounded-xl bg-sea-800/70 px-2.5 py-2 ring-1 ring-sea-700">
       <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-foam/50">{title}</span>
       <span className="flex items-center justify-between text-sm font-bold tabular-nums">
-        <span className={hp <= 3 ? "text-hit" : ""}>
-          ❤️ {Math.max(0, hp)}/{HERO_HP}
+        <span className={`${dato} ${hp <= 4 ? "text-hit" : ""}`}>
+          <GiHearts className="text-hit" /> {Math.max(0, hp)}
         </span>
-        <span>🗡️ {atk}</span>
-        <span>🪙 {gold}</span>
+        <span className={dato}>
+          <GiBroadsword className="text-sky-300" /> {atk}
+        </span>
+        <span className={dato}>
+          <GiCheckedShield className="text-indigo-300" /> {def}
+        </span>
+        <span className={dato}>
+          <GiTwoCoins className="text-yellow-400" /> {gold}
+        </span>
       </span>
     </div>
   );
@@ -144,15 +198,15 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
           const cell: ViewCell = game.cells[i];
           const alcance = playable && i in game.reach && i !== game.you.pos;
           const blanco = playable && i in game.targets;
-          const dibujo = cell.hero
+          const dibujo: Glyph | null = cell.hero
             ? cell.hero === view.you
-              ? "🧙"
-              : "🥷"
+              ? YOU
+              : RIVAL
             : cell.monster
               ? BEAST[cell.monster.kind]
               : cell.item
                 ? ITEM[cell.item]
-                : "";
+                : null;
 
           return (
             <button
@@ -163,7 +217,7 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
               aria-label={`Casilla ${i}${cell.hero === view.you ? " tú" : ""}${cell.hero === rival ? " rival" : ""}`}
               data-k={cell.k}
               className={[
-                "relative grid aspect-square place-items-center rounded-[3px] text-[1.05rem] leading-none transition-colors",
+                "relative grid aspect-square place-items-center rounded-[3px] transition-colors",
                 // Una sola clase de fondo, que en Tailwind dos se pisan.
                 cell.k === "unknown"
                   ? "bg-sea-950"
@@ -176,9 +230,17 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
                 blanco ? "ring-2 ring-inset ring-hit" : alcance ? "ring-1 ring-inset ring-emerald-300/60" : "",
               ].join(" ")}
             >
-              <span className={cell.k === "floor" && !cell.lit ? "opacity-50" : ""}>{dibujo}</span>
+              {dibujo && (
+                <dibujo.Icon
+                  className={[
+                    "size-[78%]",
+                    dibujo.color,
+                    cell.k === "floor" && !cell.lit ? "opacity-45" : "",
+                  ].join(" ")}
+                />
+              )}
               {cell.monster && (
-                <span className="absolute right-0 bottom-0 rounded-tl bg-sea-950/80 px-[2px] text-[0.55rem] font-bold text-foam tabular-nums">
+                <span className="absolute right-0 bottom-0 rounded-tl bg-sea-950/80 px-[2px] text-[0.5rem] leading-tight font-bold text-foam tabular-nums">
                   {cell.monster.hp}
                 </span>
               )}
@@ -205,9 +267,29 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
         </div>
       )}
 
+      {/* Bestiario: con cuatro monstruos ya no se recuerdan de memoria. */}
+      <div className="grid grid-cols-4 gap-1.5 text-[0.7rem] text-foam/60">
+        {(Object.keys(BEAST) as MonsterKind[]).map((kind) => {
+          const { Icon, color } = BEAST[kind];
+          return (
+            <span
+              key={kind}
+              className="flex items-center justify-center gap-1 rounded-lg bg-sea-900/60 px-1 py-1.5 tabular-nums"
+            >
+              <Icon className={`size-5 ${color}`} />
+              <GiHearts className="text-hit/80" />
+              {MONSTER[kind].hp}
+              <GiBroadsword className="text-sky-300/80" />
+              {MONSTER[kind].atk}
+            </span>
+          );
+        })}
+      </div>
+
       <p className="text-center text-[0.7rem] leading-relaxed text-foam/40">
-        🪙 oro · 💰 cofre (5) · 🧪 +4 vida · 🗡️ +1 ataque · 🐀 💀 muerden si acabas al lado.
-        Gana quien más oro tenga… o quien quede en pie.
+        Los monstruos golpean si acabas el turno a su lado; el escudo resta uno a cada golpe. Gana
+        quien más oro tenga… o quien quede en pie.
+        <span className="mt-1 block text-foam/25">Iconos: game-icons.net (CC BY 3.0)</span>
       </p>
     </div>
   );

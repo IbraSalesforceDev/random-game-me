@@ -1,7 +1,7 @@
 import type { Side } from "@/lib/games/types";
 
-export const W = 11;
-export const H = 13;
+export const W = 13;
+export const H = 15;
 export const CELLS = W * H;
 /** Casilla central: es su propia simétrica y guarda el cofre. */
 export const CENTER = (CELLS - 1) / 2;
@@ -10,23 +10,32 @@ export const CENTER = (CELLS - 1) / 2;
 export const REACH = 4;
 /** Hasta dónde alumbra la antorcha, en casillas en cualquier dirección. */
 export const SIGHT = 2;
-export const TURNS = 25;
+export const TURNS = 30;
 
-export const HERO_HP = 10;
+export const HERO_HP = 12;
 export const HERO_ATK = 2;
 export const POTION_HEAL = 4;
 export const CHEST_GOLD = 5;
 
-export type MonsterKind = "rat" | "skeleton";
+export type MonsterKind = "rat" | "goblin" | "skeleton" | "orc";
 export type Monster = { kind: MonsterKind; hp: number };
-export type Item = "gold" | "potion" | "sword" | "chest";
+export type Item = "gold" | "potion" | "sword" | "shield" | "chest";
 
 export const MONSTER: Record<MonsterKind, { hp: number; atk: number; gold: number; name: string }> = {
   rat: { hp: 2, atk: 1, gold: 1, name: "la rata" },
+  goblin: { hp: 3, atk: 2, gold: 2, name: "el goblin" },
   skeleton: { hp: 5, atk: 2, gold: 2, name: "el esqueleto" },
+  // El orco es el único que duele de verdad: sin escudo o sin espada, mejor rodearlo.
+  orc: { hp: 6, atk: 3, gold: 3, name: "el orco" },
 };
 
-export type Hero = { pos: number; hp: number; atk: number; gold: number };
+/**
+ * Daño de un golpe. El escudo resta, pero un golpe que entra siempre hace al
+ * menos uno: si no, dos escudos volverían a un héroe intocable.
+ */
+export const damage = (atk: number, def: number) => Math.max(1, atk - def);
+
+export type Hero = { pos: number; hp: number; atk: number; def: number; gold: number };
 
 /** Mapa y contenido. Las listas van por índice de casilla, fila a fila. */
 export type Board = {
@@ -141,7 +150,7 @@ export function generate(): Board {
       if (i in alcanzable) suelo++;
       else walls[i] = 1;
     }
-    if (suelo < 95) continue;
+    if (suelo < 130) continue;
 
     const items = new Array<Item | null>(CELLS).fill(null);
     const monsters = new Array<Monster | null>(CELLS).fill(null);
@@ -155,7 +164,7 @@ export function generate(): Board {
           manhattan(i, START.guest) > 3,
       ),
     );
-    if (huecos.length < 11) continue;
+    if (huecos.length < 16) continue;
 
     const poner = (n: number, fn: (i: number) => void) => {
       for (let k = 0; k < n; k++) {
@@ -164,10 +173,15 @@ export function generate(): Board {
         fn(mirror(i));
       }
     };
-    poner(5, (i) => (items[i] = "gold"));
+    const bicho = (kind: MonsterKind) => (i: number) =>
+      (monsters[i] = { kind, hp: MONSTER[kind].hp });
+    poner(6, (i) => (items[i] = "gold"));
     poner(2, (i) => (items[i] = "potion"));
     poner(1, (i) => (items[i] = "sword"));
-    poner(3, (i) => (monsters[i] = { kind: "rat", hp: MONSTER.rat.hp }));
+    poner(1, (i) => (items[i] = "shield"));
+    poner(3, bicho("rat"));
+    poner(2, bicho("goblin"));
+    poner(1, bicho("orc"));
 
     // El cofre va en el centro, con un esqueleto a cada lado.
     items[CENTER] = "chest";
