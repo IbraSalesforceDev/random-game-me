@@ -56,6 +56,8 @@ export type PlayerView = {
   scores: Record<string, PlayerTally>;
   /** Nivel del bot, o null si el rival es una persona. */
   botLevel: BotLevel | null;
+  /** El juego en curso es por equipo: el otro jugador es tu compañero. */
+  cooperative: boolean;
   updatedAt: string;
 };
 
@@ -87,6 +89,9 @@ export function sideForToken(row: GameRow, token: string | null): Side | null {
 
 function outcomeFor(row: GameRow, side: Side): PlayerView["outcome"] {
   if (row.status !== "finished") return null;
+  // En equipo el resultado es el mismo para los dos.
+  const equipo = gameById(row.game)?.teamOutcome?.(row.state);
+  if (equipo) return equipo;
   if (!row.winner) return "draw";
   return row.winner === side ? "won" : "lost";
 }
@@ -96,6 +101,12 @@ function scoresFor(row: GameRow, side: Side): Record<string, PlayerTally> {
   const rival = other(side);
   const out: Record<string, PlayerTally> = {};
   for (const [gameId, tally] of Object.entries(row.scores ?? {})) {
+    // En los cooperativos `host` guarda las ganadas y `guest` las perdidas,
+    // así que no se le da la vuelta según quién pregunte.
+    if (gameById(gameId)?.cooperative) {
+      out[gameId] = { you: tally.host, opponent: tally.guest, draws: tally.draws };
+      continue;
+    }
     out[gameId] = { you: tally[side], opponent: tally[rival], draws: tally.draws };
   }
   return out;
@@ -110,6 +121,7 @@ export function toPlayerView(row: GameRow, side: Side): PlayerView {
   return {
     scores: scoresFor(row, side),
     botLevel: row.bot_level,
+    cooperative: Boolean(module?.cooperative),
     code: row.code,
     status: row.status,
     you: side,
