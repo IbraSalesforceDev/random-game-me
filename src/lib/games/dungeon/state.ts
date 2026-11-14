@@ -1,5 +1,7 @@
 import {
   type Board,
+  DOOR,
+  edgeOf,
   flood,
   type Hero,
   type Item,
@@ -7,8 +9,11 @@ import {
   type Monster,
   type MonsterKind,
   neighbors,
-  REACH,
+  passable,
   type Reach,
+  stepsOf,
+  W,
+  WALL,
 } from "@/lib/games/dungeon/rules";
 import { other, type Side } from "@/lib/games/types";
 
@@ -21,8 +26,14 @@ export type LastTurn = {
   healed: number;
   sword: boolean;
   shield: boolean;
+  haste: boolean;
+  ward: boolean;
+  /** Abrió alguna puerta por el camino. */
+  opened: boolean;
   /** Se topó con el rival a oscuras y tuvo que pararse. */
   bumped: boolean;
+  /** Abrió una puerta y había un monstruo justo detrás. */
+  ambush: MonsterKind | null;
   hit: { what: MonsterKind | "hero"; dmg: number; killed: boolean; at: number } | null;
   /** Daño que le devolvieron los monstruos pegados al acabar. */
   hurt: number;
@@ -39,8 +50,8 @@ export type DungeonState = Board & {
 export type DungeonMove = { type: "act"; to: number } | { type: "wait" };
 
 export type ViewCell = {
-  /** `unknown` es lo que aún no has alumbrado. */
-  k: "unknown" | "wall" | "floor";
+  /** Lo que aún no has alumbrado no se enseña. */
+  known: boolean;
   /** Dentro de la luz de tu antorcha ahora mismo. */
   lit: boolean;
   item: Item | null;
@@ -50,6 +61,9 @@ export type ViewCell = {
 
 export type DungeonView = {
   cells: ViewCell[];
+  /** Bordes conocidos, con −1 donde aún no has visto ninguna de las dos casillas. */
+  east: number[];
+  south: number[];
   you: Hero;
   /** Del rival se sabe la vida y el botín; dónde está, sólo si lo alumbras. */
   rival: Omit<Hero, "pos"> & { pos: number | null };
@@ -62,39 +76,51 @@ export type DungeonView = {
 };
 
 export const visibleTo = (state: DungeonState, side: Side) =>
-  new Set(lit(state.heroes[side].pos));
+  new Set(lit(state, state.heroes[side].pos));
 
 /**
  * A dónde puede ir y a quién puede pegar un jugador. Sólo cuenta con lo que él
  * conoce: camina por casillas que ha visto, y el rival sólo le estorba si lo
- * tiene alumbrado. Si se lo encuentra a oscuras, se topa con él al andar.
+ * tiene alumbrado. La única forma de pisar algo sin ver es cruzar una puerta
+ * cerrada: se abre al pasar y ya se verá qué hay detrás.
  */
 export function optionsFor(state: DungeonState, side: Side) {
   const me = state.heroes[side];
   const rival = state.heroes[other(side)];
+  const seen = state.seen[side];
   const luz = visibleTo(state, side);
   const rivalALaVista = luz.has(rival.pos);
+  const pasos = stepsOf(me);
 
-  const libre = (i: number) =>
-    Boolean(state.seen[side][i]) &&
-    !state.walls[i] &&
-    !state.monsters[i] &&
-    !(rivalALaVista && i === rival.pos);
+  const libre = (i: number) => !state.monsters[i] && !(rivalALaVista && i === rival.pos);
 
-  const reach = flood(me.pos, libre, REACH);
+  const reach = flood(
+    me.pos,
+    (cur, next) => {
+      // Desde lo desconocido no se planea más allá.
+      if (!seen[cur]) return false;
+      const borde = edgeOf(state, cur, next);
+      if (borde === WALL) return false;
+      if (seen[next]) return libre(next);
+      return borde === DOOR;
+    },
+    pasos,
+  );
 
   const targets: Record<number, number> = {};
   const enemigos: number[] = [];
   state.monsters.forEach((m, i) => {
-    if (m && state.seen[side][i]) enemigos.push(i);
+    if (m && seen[i]) enemigos.push(i);
   });
   if (rivalALaVista) enemigos.push(rival.pos);
 
   for (const e of enemigos) {
     let mejor = -1;
     for (const n of neighbors(e)) {
-      // Pegar gasta un paso, así que hay que llegar con uno de sobra.
-      if (!(n in reach) || reach[n].d > REACH - 1) continue;
+      // Pegar gasta un paso, así que hay que llegar con uno de sobra, y no
+      // se pega a través de un muro ni de una puerta cerrada.
+      if (!(n in reach) || !seen[n] || reach[n].d > pasos - 1) continue;
+      if (!passable(edgeOf(state, n, e))) continue;
       if (mejor === -1 || reach[n].d < reach[mejor].d) mejor = n;
     }
     if (mejor !== -1) targets[e] = mejor;
@@ -109,17 +135,16 @@ export function optionsFor(state: DungeonState, side: Side) {
  */
 export function viewFor(state: DungeonState, side: Side): DungeonView {
   const rival = state.heroes[other(side)];
+  const seen = state.seen[side];
   const luz = visibleTo(state, side);
   const { reach, targets } = optionsFor(state, side);
 
-  const cells: ViewCell[] = state.walls.map((wall, i) => {
-    if (!state.seen[side][i]) {
-      return { k: "unknown", lit: false, item: null, monster: null, hero: null };
-    }
+  const cells: ViewCell[] = seen.map((visto, i) => {
+    if (!visto) return { known: false, lit: false, item: null, monster: null, hero: null };
     const hero =
       i === state.heroes[side].pos ? side : i === rival.pos && luz.has(i) ? other(side) : null;
     return {
-      k: wall ? "wall" : "floor",
+      known: true,
       lit: luz.has(i),
       item: state.items[i],
       monster: state.monsters[i],
@@ -127,20 +152,27 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
     };
   });
 
+  // Un borde se conoce en cuanto se ha visto una de las dos casillas que separa.
+  const east = state.east.map((v, i) => (seen[i] || seen[i + 1] ? v : -1));
+  const south = state.south.map((v, i) => (seen[i] || seen[i + W] ? v : -1));
+
   // Lo que hizo el rival sólo se cuenta si te afectó o lo viste.
   const last = state.last;
   const contable =
-    last &&
-    (last.side === side || last.hit?.what === "hero" || luz.has(last.at)) ? last : null;
+    last && (last.side === side || last.hit?.what === "hero" || luz.has(last.at)) ? last : null;
 
   return {
     cells,
+    east,
+    south,
     you: state.heroes[side],
     rival: {
       hp: rival.hp,
       atk: rival.atk,
       def: rival.def,
       gold: rival.gold,
+      haste: rival.haste,
+      ward: rival.ward,
       pos: luz.has(rival.pos) ? rival.pos : null,
     },
     reach,
