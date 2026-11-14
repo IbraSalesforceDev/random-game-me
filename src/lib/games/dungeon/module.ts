@@ -1,16 +1,24 @@
 import { dungeonBot } from "@/lib/games/dungeon/bot";
 import {
+  AJAR,
+  BUFF_TURNS,
   CELLS,
   CHEST_GOLD,
   damage,
+  defOf,
+  DOOR,
+  edgeOf,
+  type Edges,
   generate,
   HERO_ATK,
   HERO_HP,
   lit,
   MONSTER,
   neighbors,
+  passable,
   pathTo,
   POTION_HEAL,
+  setEdge,
   START,
   TURNS,
 } from "@/lib/games/dungeon/rules";
@@ -26,8 +34,8 @@ import { defineGame, type MoveResult, other, type Side } from "@/lib/games/types
 
 export type { DungeonMove, DungeonState, DungeonView };
 
-function reveal(seen: number[], from: number) {
-  for (const i of lit(from)) seen[i] = 1;
+function reveal(seen: number[], edges: Edges, from: number) {
+  for (const i of lit(edges, from)) seen[i] = 1;
 }
 
 /** Quedan monedas, cofre o monstruos: todavía hay botín por el que pelear. */
@@ -46,9 +54,17 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
       host: new Array<number>(CELLS).fill(0),
       guest: new Array<number>(CELLS).fill(0),
     };
-    reveal(seen.host, START.host);
-    reveal(seen.guest, START.guest);
-    const hero = (pos: number) => ({ pos, hp: HERO_HP, atk: HERO_ATK, def: 0, gold: 0 });
+    reveal(seen.host, board, START.host);
+    reveal(seen.guest, board, START.guest);
+    const hero = (pos: number) => ({
+      pos,
+      hp: HERO_HP,
+      atk: HERO_ATK,
+      def: 0,
+      gold: 0,
+      haste: 0,
+      ward: 0,
+    });
     return {
       ...board,
       heroes: { host: hero(START.host), guest: hero(START.guest) },
@@ -69,6 +85,8 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
     // Copia de trabajo: el estado que llega no se toca.
     const s: DungeonState = {
       ...state,
+      east: [...state.east],
+      south: [...state.south],
       items: [...state.items],
       monsters: state.monsters.map((m) => (m ? { ...m } : null)),
       heroes: { host: { ...state.heroes.host }, guest: { ...state.heroes.guest } },
@@ -84,7 +102,11 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
       healed: 0,
       sword: false,
       shield: false,
+      haste: false,
+      ward: false,
+      opened: false,
       bumped: false,
+      ambush: null,
       hit: null,
       hurt: 0,
     };
@@ -101,13 +123,25 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
       }
 
       for (const paso of pathTo(reach, objetivo ? targets[to] : to)) {
+        // Una puerta cerrada se abre al cruzarla, y abierta se queda.
+        if (edgeOf(s, me.pos, paso) === DOOR) {
+          setEdge(s, me.pos, paso, AJAR);
+          last.opened = true;
+          reveal(s.seen[side], s, me.pos);
+        }
         // El rival estaba a oscuras en mitad del camino: te topas con él.
         if (paso === rival.pos) {
           last.bumped = true;
           break;
         }
+        // O había algo esperando justo detrás de la puerta.
+        const acecha = s.monsters[paso];
+        if (acecha) {
+          last.ambush = acecha.kind;
+          break;
+        }
         me.pos = paso;
-        reveal(s.seen[side], paso);
+        reveal(s.seen[side], s, paso);
         const item = s.items[paso];
         if (item === "gold") {
           me.gold += 1;
@@ -125,12 +159,18 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
         } else if (item === "shield") {
           me.def += 1;
           last.shield = true;
+        } else if (item === "haste") {
+          last.haste = true;
+        } else if (item === "ward") {
+          last.ward = true;
         }
         s.items[paso] = null;
       }
 
       // Si un tropiezo le dejó lejos del objetivo, el golpe se pierde.
-      if (objetivo && !last.bumped && neighbors(me.pos).includes(to)) {
+      const aTiro =
+        neighbors(me.pos).includes(to) && passable(edgeOf(s, me.pos, to));
+      if (objetivo && !last.bumped && !last.ambush && aTiro) {
         const monstruo = s.monsters[to];
         if (monstruo) {
           monstruo.hp -= me.atk;
@@ -142,7 +182,7 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
           }
           last.hit = { what: monstruo.kind, dmg: me.atk, killed: muerto, at: to };
         } else if (to === rival.pos) {
-          const dmg = damage(me.atk, rival.def);
+          const dmg = damage(me.atk, defOf(rival));
           rival.hp -= dmg;
           last.hit = { what: "hero", dmg, killed: rival.hp <= 0, at: to };
         }
@@ -151,10 +191,18 @@ export const dungeon = defineGame<DungeonState, DungeonMove>({
       return { ok: false, error: "Movimiento desconocido" };
     }
 
-    // Los monstruos no se mueven, pero muerden a quien acabe el turno pegado.
+    // Los potenciadores gastan un turno, salvo el recién cogido: ése empieza
+    // a contar en el siguiente, y el amuleto ya protege desde ahora.
+    if (me.haste > 0) me.haste -= 1;
+    if (me.ward > 0) me.ward -= 1;
+    if (last.haste) me.haste = BUFF_TURNS;
+    if (last.ward) me.ward = BUFF_TURNS;
+
+    // Los monstruos no se mueven, pero muerden a quien acabe el turno pegado
+    // y sin un muro o una puerta cerrada de por medio.
     for (const n of neighbors(me.pos)) {
       const m = s.monsters[n];
-      if (m) last.hurt += damage(MONSTER[m.kind].atk, me.def);
+      if (m && passable(edgeOf(s, me.pos, n))) last.hurt += damage(MONSTER[m.kind].atk, defOf(me));
     }
     me.hp -= last.hurt;
     last.at = me.pos;
