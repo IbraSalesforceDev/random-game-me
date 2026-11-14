@@ -4,7 +4,6 @@ import {
   damage,
   defOf,
   edgeOf,
-  HERO_HP,
   manhattan,
   MONSTER,
   neighbors,
@@ -23,7 +22,7 @@ import {
 } from "@/lib/games/dungeon/state";
 import type { BotLevel, Side } from "@/lib/games/types";
 
-const RUIDO: Record<BotLevel, number> = { easy: 30, medium: 7, hard: 0.01 };
+const RUIDO: Record<BotLevel, number> = { easy: 30, medium: 12, hard: 0.01 };
 
 /**
  * El bot de la mazmorra. Trabaja sobre `viewFor`, la misma vista que recibe
@@ -87,7 +86,7 @@ function distanciaAMetas(view: DungeonView, experto: boolean): number[] {
   const metas: number[] = [];
   cells.forEach((c, i) => {
     if (!c.known || c.monster) return;
-    if (c.item && (c.item !== "potion" || you.hp <= HERO_HP - 3)) metas.push(i);
+    if (c.item && (c.item !== "potion" || you.hp <= you.maxHp - 3)) metas.push(i);
     for (const n of neighbors(i)) {
       const borde = edgeOf(view, i, n);
       // Terreno por alumbrar, o una puerta cerrada: detrás está lo bueno.
@@ -152,7 +151,7 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
       nota += 8;
       if (you.ward === 0) def += WARD_DEF;
     } else if (item === "potion") {
-      const cura = Math.min(POTION_HEAL, HERO_HP - hp);
+      const cura = Math.min(POTION_HEAL, you.maxHp - hp);
       hp += cura;
       nota += cura * 2.5;
     }
@@ -169,7 +168,8 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
     if (monstruo) {
       if (atk >= monstruo.hp) {
         muerto = to;
-        nota += MONSTER[monstruo.kind].gold * 10 + 6;
+        // El oro cuenta para ganar; la experiencia, para poder con lo siguiente.
+        nota += MONSTER[monstruo.kind].gold * 10 + 6 + MONSTER[monstruo.kind].xp * 2;
       } else {
         nota += atk * 2;
       }
