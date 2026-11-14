@@ -23,17 +23,27 @@ export const HASTE_STEPS = 2;
 export const WARD_DEF = 2;
 
 export type MonsterKind = "rat" | "goblin" | "skeleton" | "orc";
-export type Monster = { kind: MonsterKind; hp: number };
+/** `awake` sólo cuenta en cooperativo: un monstruo que os ha visto ya no se queda quieto. */
+export type Monster = { kind: MonsterKind; hp: number; awake?: boolean };
 /** `haste` y `ward` son potenciadores temporales; el resto, permanente o botín. */
 export type Item = "gold" | "potion" | "sword" | "shield" | "chest" | "haste" | "ward";
 
-export const MONSTER: Record<MonsterKind, { hp: number; atk: number; gold: number; name: string }> = {
-  rat: { hp: 2, atk: 1, gold: 1, name: "la rata" },
-  goblin: { hp: 3, atk: 2, gold: 2, name: "el goblin" },
-  skeleton: { hp: 5, atk: 2, gold: 2, name: "el esqueleto" },
+export const MONSTER: Record<
+  MonsterKind,
+  { hp: number; atk: number; gold: number; name: string; speed: number }
+> = {
+  // `speed` son los pasos que da al perseguir, en cooperativo: lo pequeño corre.
+  rat: { hp: 2, atk: 1, gold: 1, name: "la rata", speed: 2 },
+  goblin: { hp: 3, atk: 2, gold: 2, name: "el goblin", speed: 2 },
+  skeleton: { hp: 5, atk: 2, gold: 2, name: "el esqueleto", speed: 1 },
   // El orco es el único que duele de verdad: sin escudo o sin espada, mejor rodearlo.
-  orc: { hp: 6, atk: 3, gold: 3, name: "el orco" },
+  orc: { hp: 6, atk: 3, gold: 3, name: "el orco", speed: 1 },
 };
+
+/** Oro que tiene que reunir el equipo en cooperativo. */
+export const TEAM_GOAL = 24;
+/** Hasta dónde sigue un monstruo despierto a un héroe, en pasos. */
+export const CHASE = 9;
 
 /**
  * Daño de un golpe. El escudo resta, pero un golpe que entra siempre hace al

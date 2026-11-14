@@ -173,6 +173,9 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
       } else {
         nota += atk * 2;
       }
+      // En equipo un monstruo a la vista va a venir de todos modos: mejor
+      // pegar primero que dejarle elegir el momento.
+      if (view.coop) nota += 7;
     } else {
       // Es el rival. Matarlo gana la partida; herirlo sólo compensa si se va
       // por delante en vida, y eso sólo lo mide el difícil.
@@ -187,7 +190,20 @@ function valorar(view: DungeonView, to: number, lejos: number[], experto: boolea
   if (hp - golpes <= 0) return -1000;
   nota -= golpes * (hp - golpes <= 4 ? 7 : 3.5);
 
-  if (experto && rival.pos !== null && !(ataque && to === rival.pos)) {
+  if (view.coop) {
+    // En equipo los monstruos vienen a por ti: acabar a su alcance es un
+    // golpe casi seguro en su turno, aunque ahora no estén pegados.
+    cells.forEach((c, i) => {
+      const m = c.monster;
+      if (!m || i === muerto) return;
+      const d = manhattan(fin, i);
+      if (d > 1 && d <= MONSTER[m.kind].speed + 1) {
+        const golpe = damage(MONSTER[m.kind].atk, def);
+        if (golpe >= hp - golpes) nota -= 300;
+        else nota -= golpe * (hp - golpes <= 5 ? 5 : 2);
+      }
+    });
+  } else if (experto && rival.pos !== null && !(ataque && to === rival.pos)) {
     // Acabar al alcance de un rival más fuerte es regalarle el turno.
     const aTiro = manhattan(fin, rival.pos) <= REACH;
     if (aTiro && rival.hp >= hp - golpes) nota -= 8;

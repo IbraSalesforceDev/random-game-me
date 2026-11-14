@@ -12,6 +12,7 @@ import {
   passable,
   type Reach,
   stepsOf,
+  TEAM_GOAL,
   W,
   WALL,
 } from "@/lib/games/dungeon/rules";
@@ -37,6 +38,8 @@ export type LastTurn = {
   hit: { what: MonsterKind | "hero"; dmg: number; killed: boolean; at: number } | null;
   /** Daño que le devolvieron los monstruos pegados al acabar. */
   hurt: number;
+  /** En cooperativo: cada golpe de monstruo de esta ronda, y a quién. */
+  bites?: { kind: MonsterKind; dmg: number; who: Side }[];
 };
 
 export type DungeonState = Board & {
@@ -45,6 +48,10 @@ export type DungeonState = Board & {
   seen: Record<Side, number[]>;
   turnsLeft: Record<Side, number>;
   last: LastTurn | null;
+  /** Los dos van juntos contra la mazmorra. Sin esto, es un duelo. */
+  coop?: boolean;
+  /** Cómo acabó la partida cooperativa. */
+  result?: "won" | "lost";
 };
 
 export type DungeonMove = { type: "act"; to: number } | { type: "wait" };
@@ -73,10 +80,18 @@ export type DungeonView = {
   targets: Record<number, number>;
   turnsLeft: number;
   last: LastTurn | null;
+  /** Partida en equipo: `rival` es tu compañero y `goal` el oro que hay que reunir. */
+  coop: boolean;
+  goal: number;
 };
 
+/** Lo que se alumbra: en duelo, tu antorcha; en equipo, la de los dos. */
 export const visibleTo = (state: DungeonState, side: Side) =>
-  new Set(lit(state, state.heroes[side].pos));
+  new Set(
+    state.coop
+      ? [...lit(state, state.heroes.host.pos), ...lit(state, state.heroes.guest.pos)]
+      : lit(state, state.heroes[side].pos),
+  );
 
 /**
  * A dónde puede ir y a quién puede pegar un jugador. Sólo cuenta con lo que él
@@ -92,7 +107,9 @@ export function optionsFor(state: DungeonState, side: Side) {
   const rivalALaVista = luz.has(rival.pos);
   const pasos = stepsOf(me);
 
-  const libre = (i: number) => !state.monsters[i] && !(rivalALaVista && i === rival.pos);
+  // En equipo los monstruos se mueven, así que sólo se sabe de los alumbrados.
+  const monstruoVisto = (i: number) => Boolean(state.monsters[i]) && (!state.coop || luz.has(i));
+  const libre = (i: number) => !monstruoVisto(i) && !(rivalALaVista && i === rival.pos);
 
   const reach = flood(
     me.pos,
@@ -110,9 +127,10 @@ export function optionsFor(state: DungeonState, side: Side) {
   const targets: Record<number, number> = {};
   const enemigos: number[] = [];
   state.monsters.forEach((m, i) => {
-    if (m && seen[i]) enemigos.push(i);
+    if (m && seen[i] && monstruoVisto(i)) enemigos.push(i);
   });
-  if (rivalALaVista) enemigos.push(rival.pos);
+  // Al compañero no se le pega.
+  if (rivalALaVista && !state.coop) enemigos.push(rival.pos);
 
   for (const e of enemigos) {
     let mejor = -1;
@@ -147,7 +165,7 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
       known: true,
       lit: luz.has(i),
       item: state.items[i],
-      monster: state.monsters[i],
+      monster: state.coop && !luz.has(i) ? null : state.monsters[i],
       hero,
     };
   });
@@ -159,7 +177,9 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
   // Lo que hizo el rival sólo se cuenta si te afectó o lo viste.
   const last = state.last;
   const contable =
-    last && (last.side === side || last.hit?.what === "hero" || luz.has(last.at)) ? last : null;
+    last && (state.coop || last.side === side || last.hit?.what === "hero" || luz.has(last.at))
+      ? last
+      : null;
 
   return {
     cells,
@@ -179,5 +199,7 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
     targets,
     turnsLeft: state.turnsLeft[side],
     last: contable,
+    coop: Boolean(state.coop),
+    goal: TEAM_GOAL,
   };
 }

@@ -49,7 +49,7 @@ export default function GamePicker({ scores, soloOnly, onChoose }: Props) {
           <span className="flex-1">
             <span className="flex items-center gap-2">
               <span className="text-lg font-bold">{game.name}</span>
-              <Scoreboard tally={scores[game.id]} compact />
+              <Scoreboard tally={scores[game.id]} compact team={"cooperative" in game && game.cooperative} />
             </span>
             <span className="block text-sm text-foam/60">{game.tagline}</span>
           </span>

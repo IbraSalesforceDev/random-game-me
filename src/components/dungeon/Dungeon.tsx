@@ -14,6 +14,7 @@ import {
   GiOrcHead,
   GiRat,
   GiSkeleton,
+  GiSwordman,
   GiTwoCoins,
   GiVisoredHelm,
   GiWingfoot,
@@ -36,6 +37,7 @@ import {
   WARD_DEF,
 } from "@/lib/games/dungeon/rules";
 import type { LastTurn } from "@/lib/games/dungeon/state";
+import type { Side } from "@/lib/games/types";
 import type { PlayerView } from "@/lib/server/games";
 
 type Props = {
@@ -74,32 +76,56 @@ const BEAST: Record<MonsterKind, Glyph> = {
 };
 const YOU: Glyph = { Icon: GiVisoredHelm, color: "text-emerald-300" };
 const RIVAL: Glyph = { Icon: GiHoodedAssassin, color: "text-rose-400" };
+const ALLY: Glyph = { Icon: GiSwordman, color: "text-sky-300" };
 
 /** Cuenta en una frase lo último que pasó, desde el punto de vista de quien mira. */
-function relato(last: LastTurn, mine: boolean): string {
-  if (!mine) {
+function relato(last: LastTurn, you: Side, coop: boolean): string {
+  const mine = last.side === you;
+  const partes: string[] = [];
+
+  if (!mine && !coop) {
     if (last.hit?.what === "hero") return `El rival te ataca: −${last.hit.dmg} de vida`;
     return last.opened ? "Oyes abrirse una puerta: el rival anda cerca" : "Ves moverse al rival";
   }
-  const partes: string[] = [];
-  if (last.ambush) partes.push(`abres la puerta y te espera ${MONSTER[last.ambush].name}`);
-  else if (last.opened) partes.push("abres una puerta");
-  if (last.bumped) partes.push("te topas con el rival a oscuras");
-  if (last.hit) {
-    const quien = last.hit.what === "hero" ? "el rival" : MONSTER[last.hit.what].name;
-    partes.push(
-      last.hit.killed
-        ? `acabas con ${quien}`
-        : `golpeas a ${quien} (−${last.hit.dmg})`.replace("a el ", "al "),
-    );
+
+  if (mine) {
+    if (last.ambush) partes.push(`abres la puerta y te espera ${MONSTER[last.ambush].name}`);
+    else if (last.opened) partes.push("abres una puerta");
+    if (last.bumped) partes.push("te topas con el rival a oscuras");
+    if (last.hit) {
+      const quien = last.hit.what === "hero" ? "el rival" : MONSTER[last.hit.what].name;
+      partes.push(
+        last.hit.killed
+          ? `acabas con ${quien}`
+          : `golpeas a ${quien} (−${last.hit.dmg})`.replace("a el ", "al "),
+      );
+    }
+    if (last.gold) partes.push(`+${last.gold} de oro`);
+    if (last.healed) partes.push(`+${last.healed} de vida`);
+    if (last.sword) partes.push("espada: +1 de ataque");
+    if (last.shield) partes.push("escudo: +1 de defensa");
+    if (last.haste) partes.push(`botas: +${HASTE_STEPS} pasos durante 3 turnos`);
+    if (last.ward) partes.push(`amuleto: +${WARD_DEF} de defensa durante 3 turnos`);
+  } else {
+    // El turno de tu compañero, contado en corto.
+    if (last.hit?.killed && last.hit.what !== "hero") {
+      partes.push(`tu compañero acaba con ${MONSTER[last.hit.what].name}`);
+    } else if (last.gold) partes.push(`tu compañero recoge ${last.gold} de oro`);
+    else if (last.opened) partes.push("tu compañero abre una puerta");
   }
-  if (last.gold) partes.push(`+${last.gold} de oro`);
-  if (last.healed) partes.push(`+${last.healed} de vida`);
-  if (last.sword) partes.push("espada: +1 de ataque");
-  if (last.shield) partes.push("escudo: +1 de defensa");
-  if (last.haste) partes.push(`botas: +${HASTE_STEPS} pasos durante 3 turnos`);
-  if (last.ward) partes.push(`amuleto: +${WARD_DEF} de defensa durante 3 turnos`);
-  if (last.hurt) partes.push(`te muerden: −${last.hurt} de vida`);
+
+  if (coop) {
+    // Los monstruos mueven al cerrar la ronda: a quién han alcanzado.
+    const suma = (who: Side) =>
+      (last.bites ?? []).filter((b) => b.who === who).reduce((n, b) => n + b.dmg, 0);
+    const ami = suma(you);
+    const alOtro = suma(you === "host" ? "guest" : "host");
+    if (ami) partes.push(`los monstruos te golpean: −${ami} de vida`);
+    if (alOtro) partes.push(`golpean a tu compañero: −${alOtro}`);
+  } else if (last.hurt) {
+    partes.push(`te muerden: −${last.hurt} de vida`);
+  }
+
   if (partes.length === 0) return "";
   const frase = partes.join(" · ");
   return frase[0].toUpperCase() + frase.slice(1);
@@ -190,10 +216,18 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
   const tam = { width: `${100 / W}%`, height: `${100 / H}%` };
 
   const last = game.last;
-  const texto = last ? relato(last, last.side === view.you) : "";
+  const coop = game.coop;
+  const texto = last ? relato(last, view.you, coop) : "";
   const malo = Boolean(
-    last && (last.side !== view.you ? last.hit?.what === "hero" : last.hurt > 0),
+    last &&
+      (coop
+        ? last.bites?.some((b) => b.who === view.you)
+        : last.side !== view.you
+          ? last.hit?.what === "hero"
+          : last.hurt > 0),
   );
+  const OTRO = coop ? ALLY : RIVAL;
+  const oroEquipo = game.you.gold + game.rival.gold;
 
   return (
     <div className="flex flex-col gap-3">
@@ -207,7 +241,7 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
           `Tu turno · te quedan ${game.turnsLeft}`
         ) : (
           <>
-            Turno del rival
+            {coop ? "Turno de tu compañero" : "Turno del rival"}
             <Thinking active={thinking} />
           </>
         )}
@@ -215,8 +249,23 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
 
       <div className="flex gap-2">
         <Stats title="Tú" hero={game.you} />
-        <Stats title="Rival" hero={game.rival} />
+        <Stats title={coop ? "Compañero" : "Rival"} hero={game.rival} />
       </div>
+
+      {coop && (
+        <div className="flex items-center gap-3 rounded-xl bg-sea-800/70 px-3 py-2 ring-1 ring-sea-700">
+          <GiTwoCoins className="shrink-0 text-xl text-yellow-400" />
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-sea-950">
+            <div
+              className="h-full rounded-full bg-yellow-400 transition-all duration-500"
+              style={{ width: `${Math.min(100, (oroEquipo * 100) / game.goal)}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-sm font-bold tabular-nums">
+            {oroEquipo}/{game.goal}
+          </span>
+        </div>
+      )}
 
       {texto && (
         <p
@@ -346,9 +395,9 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
               className="absolute transition-all duration-500 ease-out"
               style={{ ...lugar(game.rival.pos), ...tam }}
             >
-              <RIVAL.Icon
-                aria-label="rival"
-                className={`size-full p-[8%] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${RIVAL.color}`}
+              <OTRO.Icon
+                aria-label={coop ? "compañero" : "rival"}
+                className={`size-full p-[8%] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${OTRO.color}`}
               />
               {last && last.side !== view.you && (
                 <span
@@ -399,8 +448,10 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
       <p className="text-center text-[0.7rem] leading-relaxed text-foam/40">
         <GiWingfoot className="inline text-cyan-300" /> botas: +{HASTE_STEPS} pasos ·{" "}
         <GiMagicShield className="inline text-violet-300" /> amuleto: +{WARD_DEF} defensa (3 turnos
-        cada uno). Los monstruos golpean si acabas el turno a su lado sin un muro por medio. Gana
-        quien más oro tenga… o quien quede en pie.
+        cada uno).{" "}
+        {coop
+          ? `Los monstruos que os ven os persiguen y pegan al acabar cada ronda; no abren puertas. Reunid ${game.goal} de oro entre los dos sin que caiga ninguno.`
+          : "Los monstruos golpean si acabas el turno a su lado sin un muro por medio. Gana quien más oro tenga… o quien quede en pie."}
         <span className="mt-1 block text-foam/25">Iconos: game-icons.net (CC BY 3.0)</span>
       </p>
     </div>

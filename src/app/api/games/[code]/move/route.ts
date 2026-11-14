@@ -52,7 +52,10 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const scores = { ...(row.scores ?? {}) };
   if (progress.finished) {
     const tally = { ...(scores[module.id] ?? emptyTally()) };
-    if (progress.winner) tally[progress.winner] += 1;
+    // En equipo se apunta la partida ganada en `host` y la perdida en `guest`.
+    const equipo = module.teamOutcome?.(progress.state);
+    if (equipo) tally[equipo === "won" ? "host" : "guest"] += 1;
+    else if (progress.winner) tally[progress.winner] += 1;
     else tally.draws += 1;
     scores[module.id] = tally;
   }

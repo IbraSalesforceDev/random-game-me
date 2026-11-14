@@ -123,7 +123,7 @@ function ActiveGame({
     );
   }
 
-  if (view.game === "dungeon") {
+  if (view.game === "dungeon" || view.game === "dungeon_coop") {
     return (
       <Dungeon
         view={view}
@@ -187,6 +187,13 @@ const OUTCOME = {
   won: { emoji: "🏆", title: "¡Has ganado!", box: "bg-emerald-400 text-sea-950" },
   lost: { emoji: "💥", title: "Has perdido", box: "bg-sunk text-foam" },
   draw: { emoji: "🤝", title: "Empate", box: "bg-sea-700 text-foam" },
+} as const;
+
+/** En equipo el resultado es de los dos, así que se cuenta en plural. */
+const TEAM_OUTCOME = {
+  won: { emoji: "🏆", title: "¡Lo habéis conseguido!", box: "bg-emerald-400 text-sea-950" },
+  lost: { emoji: "💀", title: "La mazmorra os ha vencido", box: "bg-sunk text-foam" },
+  draw: OUTCOME.draw,
 } as const;
 
 export default function GameClient({ code }: { code: string }) {
@@ -260,7 +267,7 @@ export default function GameClient({ code }: { code: string }) {
       }
       setView(final);
     });
-  const outcome = view.outcome ? OUTCOME[view.outcome] : null;
+  const outcome = view.outcome ? (view.cooperative ? TEAM_OUTCOME : OUTCOME)[view.outcome] : null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 p-4">
@@ -298,7 +305,10 @@ export default function GameClient({ code }: { code: string }) {
             <p className="mt-1 opacity-80">{view.gameName}</p>
           </div>
 
-          <Scoreboard tally={view.game ? view.scores[view.game] : undefined} />
+          <Scoreboard
+            tally={view.game ? view.scores[view.game] : undefined}
+            team={view.cooperative}
+          />
 
           {/* Las dos primeras se quedan en la sala; salir se separa y se avisa. */}
           <button

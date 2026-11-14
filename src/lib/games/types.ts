@@ -54,6 +54,15 @@ export type GameModule<S = unknown, M = unknown> = {
    * simplemente no aparece cuando se juega en solitario.
    */
   bot?(state: S, side: Side, level: BotLevel): M | null;
+
+  /**
+   * Juegos en los que los dos van en el mismo equipo. Ahí no gana un lado u
+   * otro: se gana o se pierde juntos, y el marcador cuenta partidas ganadas y
+   * perdidas en vez de las de cada jugador.
+   */
+  cooperative?: boolean;
+  /** En un juego cooperativo terminado, cómo le fue al equipo. */
+  teamOutcome?(state: S): "won" | "lost" | null;
 };
 
 export const BOT_LEVELS = ["easy", "medium", "hard"] as const;

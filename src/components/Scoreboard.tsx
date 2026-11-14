@@ -4,9 +4,12 @@ import type { PlayerTally } from "@/lib/server/games";
 export default function Scoreboard({
   tally,
   compact,
+  team,
 }: {
   tally: PlayerTally | undefined;
   compact?: boolean;
+  /** Juego cooperativo: cuenta partidas ganadas y perdidas por el equipo. */
+  team?: boolean;
 }) {
   if (!tally) return null;
   const played = tally.you + tally.opponent + tally.draws;
@@ -25,12 +28,12 @@ export default function Scoreboard({
     <div className="flex items-center justify-center gap-5 rounded-xl bg-sea-800/70 px-4 py-3 ring-1 ring-sea-700">
       <span className="text-center">
         <span className="block text-2xl font-black tabular-nums">{tally.you}</span>
-        <span className="block text-xs text-foam/50">tú</span>
+        <span className="block text-xs text-foam/50">{team ? "ganadas" : "tú"}</span>
       </span>
       <span className="text-foam/25">—</span>
       <span className="text-center">
         <span className="block text-2xl font-black tabular-nums">{tally.opponent}</span>
-        <span className="block text-xs text-foam/50">rival</span>
+        <span className="block text-xs text-foam/50">{team ? "perdidas" : "rival"}</span>
       </span>
       {tally.draws > 0 && (
         <>
