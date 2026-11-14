@@ -169,6 +169,15 @@ function Stats({ title, hero }: { title: string; hero: Omit<Hero, "pos"> }) {
   );
 }
 
+/**
+ * Casillas que se ven a la vez. El mapa es más grande que la pantalla: se
+ * enseña una ventana que sigue a tu héroe y se puede arrastrar para mirar.
+ * Así las casillas tienen un tamaño cómodo para el dedo por grande que sea
+ * la mazmorra.
+ */
+const VIEW_W = 11;
+const VIEW_H = 12;
+
 /** Colores de un borde: muro de piedra, puerta de madera, puerta ya abierta. */
 const BORDE: Record<number, string> = {
   [WALL]: "bg-stone-300",
@@ -179,7 +188,37 @@ const BORDE: Record<number, string> = {
 export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) {
   const [sending, setSending] = useState(false);
   const playable = view.yourTurn && view.status === "playing" && !sending;
-  const girado = view.you === "guest";
+  // En duelo cada uno ve su esquina abajo a la izquierda, así que el invitado
+  // mira el mapa girado. En equipo salen juntos y lo ven igual.
+  const girado = view.you === "guest" && !game.coop;
+
+  const viewRef = useRef<HTMLDivElement>(null);
+  const [cell, setCell] = useState(32);
+  useEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const medir = () => setCell(Math.max(20, Math.floor(el.clientWidth / VIEW_W)));
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // La cámara se centra en tu héroe cuando se mueve y al empezar tu turno.
+  // Dependencias sueltas a propósito: con el objeto de la vista saltaría en
+  // cada sondeo y no dejaría arrastrar el mapa para mirar.
+  const yo = game.you.pos;
+  useEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const x = girado ? W - 1 - (yo % W) : yo % W;
+    const y = girado ? H - 1 - Math.floor(yo / W) : Math.floor(yo / W);
+    el.scrollTo({
+      left: x * cell - (el.clientWidth - cell) / 2,
+      top: y * cell - (el.clientHeight - cell) / 2,
+      behavior: "smooth",
+    });
+  }, [yo, cell, girado, view.yourTurn]);
 
   const hadTurn = useRef(view.yourTurn);
   useEffect(() => {
@@ -203,7 +242,6 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
     }
   };
 
-  // Cada uno ve su esquina abajo a la izquierda: el invitado mira el mapa girado.
   const orden = game.cells.map((_, i) => i);
   if (girado) orden.reverse();
 
@@ -281,10 +319,16 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
         </p>
       )}
 
-      {/* El tablero se sale un poco de los márgenes de la página: con quince
-          casillas de ancho, cada píxel cuenta para que se puedan tocar. */}
-      <div className="relative -mx-2.5 overflow-hidden rounded-lg border-[3px] border-stone-400 bg-stone-950 select-none">
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${W}, minmax(0, 1fr))` }}>
+      <div
+        ref={viewRef}
+        data-camara
+        className="-mx-2.5 overflow-auto overscroll-contain rounded-lg border-[3px] border-stone-400 bg-stone-950 select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ height: cell * VIEW_H + 6 }}
+      >
+       {/* Recortado: el resplandor de la antorcha se sale del tablero y, si no,
+           alarga la zona desplazable más allá del mapa. */}
+       <div className="relative overflow-hidden" style={{ width: W * cell, height: H * cell }}>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${W}, ${cell}px)` }}>
           {orden.map((i) => {
             const cell = game.cells[i];
             const paso = playable && i in game.reach && i !== game.you.pos;
@@ -408,12 +452,13 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
             </div>
           )}
         </div>
+       </div>
       </div>
 
       {playable && (
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-foam/45">
-            Verde: ir. <span className="text-amber-400/90">Ámbar: abrir una puerta.</span>{" "}
+            Arrastra el mapa para mirar. Verde: ir. <span className="text-amber-400/90">Ámbar: abrir una puerta.</span>{" "}
             <span className="text-hit/90">Rojo: cargar.</span>
           </p>
           <button

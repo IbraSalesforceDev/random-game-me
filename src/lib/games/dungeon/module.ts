@@ -22,6 +22,7 @@ import {
   POTION_HEAL,
   setEdge,
   START,
+  START_COOP,
   TEAM_GOAL,
   TURNS,
 } from "@/lib/games/dungeon/rules";
@@ -129,12 +130,13 @@ const makeDungeon = (coop: boolean) =>
         host: new Array<number>(CELLS).fill(0),
         guest: new Array<number>(CELLS).fill(0),
       };
-      reveal(seen.host, board, START.host);
-      reveal(seen.guest, board, START.guest);
+      // En equipo salen juntos y comparten lo que ven desde el principio.
+      const salida = coop ? START_COOP : START;
+      reveal(seen.host, board, salida.host);
+      reveal(seen.guest, board, salida.guest);
       if (coop) {
-        // En equipo se comparte lo que ve cada uno desde el primer momento.
-        reveal(seen.host, board, START.guest);
-        reveal(seen.guest, board, START.host);
+        reveal(seen.host, board, salida.guest);
+        reveal(seen.guest, board, salida.host);
       }
       const hero = (pos: number) => ({
         pos,
@@ -147,7 +149,7 @@ const makeDungeon = (coop: boolean) =>
       });
       return {
         ...board,
-        heroes: { host: hero(START.host), guest: hero(START.guest) },
+        heroes: { host: hero(salida.host), guest: hero(salida.guest) },
         seen,
         turnsLeft: { host: TURNS, guest: TURNS },
         last: null,
