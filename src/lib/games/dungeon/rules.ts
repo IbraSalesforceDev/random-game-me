@@ -1,7 +1,7 @@
 import type { Side } from "@/lib/games/types";
 
-export const W = 15;
-export const H = 17;
+export const W = 19;
+export const H = 21;
 export const CELLS = W * H;
 /** Casilla central: es su propia simétrica y guarda el cofre. */
 export const CENTER = (CELLS - 1) / 2;
@@ -10,7 +10,7 @@ export const CENTER = (CELLS - 1) / 2;
 export const REACH = 4;
 /** Hasta dónde llega la luz de la antorcha, en pasos. No atraviesa muros ni puertas cerradas. */
 export const SIGHT = 3;
-export const TURNS = 32;
+export const TURNS = 40;
 
 export const HERO_HP = 12;
 export const HERO_ATK = 2;
@@ -41,7 +41,7 @@ export const MONSTER: Record<
 };
 
 /** Oro que tiene que reunir el equipo en cooperativo. */
-export const TEAM_GOAL = 24;
+export const TEAM_GOAL = 28;
 /** Hasta dónde sigue un monstruo despierto a un héroe, en pasos. */
 export const CHASE = 9;
 
@@ -87,6 +87,12 @@ export type Board = Edges & {
 export const START: Record<Side, number> = {
   host: (H - 1) * W,
   guest: W - 1,
+};
+
+/** En equipo los dos salen juntos, de la misma esquina. */
+export const START_COOP: Record<Side, number> = {
+  host: START.host,
+  guest: START.host + 1,
 };
 
 const xy = (i: number) => [i % W, Math.floor(i / W)] as const;
@@ -198,7 +204,7 @@ export function generate(): Board {
     }
 
     let salas = 0;
-    for (let k = 0; k < 60 && salas < 4; k++) {
+    for (let k = 0; k < 120 && salas < 6; k++) {
       const w = rand(3, 5);
       const h = rand(3, 4);
       const x0 = rand(0, W - w);
@@ -222,7 +228,7 @@ export function generate(): Board {
         }
       }
     }
-    if (salas < 3) continue;
+    if (salas < 5) continue;
 
     // Muro en todo borde que separe una sala de lo que no es esa sala.
     const perimetro = new Map<number, [number, number][]>();
@@ -281,16 +287,16 @@ export function generate(): Board {
 
     // Tras las puertas, lo que más vale y lo que más muerde.
     poner(1, true, bicho("orc"));
-    poner(2, true, bicho("goblin"));
+    poner(3, true, bicho("goblin"));
     poner(1, true, cosa("sword"));
     poner(1, true, cosa("shield"));
     poner(1, true, cosa("haste"));
     poner(1, true, cosa("ward"));
-    poner(4, true, cosa("gold"));
+    poner(6, true, cosa("gold"));
     // Por los pasillos, lo menudo.
-    poner(3, false, bicho("rat"));
-    poner(2, false, cosa("potion"));
-    poner(3, false, cosa("gold"));
+    poner(4, false, bicho("rat"));
+    poner(3, false, cosa("potion"));
+    poner(4, false, cosa("gold"));
     if (falta) continue;
 
     // El cofre va en el centro, con un esqueleto a cada lado.
