@@ -14,6 +14,8 @@ import {
   generate,
   HERO_ATK,
   HERO_HP,
+  levelFor,
+  LEVELS,
   lit,
   MONSTER,
   neighbors,
@@ -146,6 +148,8 @@ const makeDungeon = (coop: boolean) =>
         gold: 0,
         haste: 0,
         ward: 0,
+        xp: 0,
+        maxHp: HERO_HP,
       });
       return {
         ...board,
@@ -195,6 +199,7 @@ const makeDungeon = (coop: boolean) =>
         shield: false,
         haste: false,
         ward: false,
+        levelUp: null,
         opened: false,
         bumped: false,
         ambush: null,
@@ -246,7 +251,7 @@ const makeDungeon = (coop: boolean) =>
             me.gold += CHEST_GOLD;
             last.gold += CHEST_GOLD;
           } else if (item === "potion") {
-            const cura = Math.min(POTION_HEAL, HERO_HP - me.hp);
+            const cura = Math.min(POTION_HEAL, me.maxHp - me.hp);
             me.hp += cura;
             last.healed += cura;
           } else if (item === "sword") {
@@ -275,6 +280,18 @@ const makeDungeon = (coop: boolean) =>
               s.monsters[to] = null;
               me.gold += MONSTER[monstruo.kind].gold;
               last.gold += MONSTER[monstruo.kind].gold;
+              // La experiencia es de quien da el golpe final. Si con ella se
+              // cruza un nivel, la mejora entra en el acto.
+              const antes = levelFor(me.xp);
+              me.xp += MONSTER[monstruo.kind].xp;
+              for (let n = antes; n < levelFor(me.xp); n++) {
+                const mejora = LEVELS[n];
+                me.atk += mejora.atk ?? 0;
+                me.def += mejora.def ?? 0;
+                me.maxHp += mejora.hp ?? 0;
+                me.hp += mejora.hp ?? 0;
+                last.levelUp = n + 1;
+              }
             }
             last.hit = {
               what: monstruo.kind,

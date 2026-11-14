@@ -29,6 +29,8 @@ import {
   H,
   HASTE_STEPS,
   type Hero,
+  levelFor,
+  LEVELS,
   type Item,
   MONSTER,
   type MonsterKind,
@@ -100,6 +102,9 @@ function relato(last: LastTurn, you: Side, coop: boolean): string {
           : `golpeas a ${quien} (−${last.hit.dmg})`.replace("a el ", "al "),
       );
     }
+    if (last.levelUp) {
+      partes.push(`¡subes a nivel ${last.levelUp}! ${LEVELS[last.levelUp - 1].perk}`);
+    }
     if (last.gold) partes.push(`+${last.gold} de oro`);
     if (last.healed) partes.push(`+${last.healed} de vida`);
     if (last.sword) partes.push("espada: +1 de ataque");
@@ -133,10 +138,15 @@ function relato(last: LastTurn, you: Side, coop: boolean): string {
 
 function Stats({ title, hero }: { title: string; hero: Omit<Hero, "pos"> }) {
   const dato = "flex items-center gap-1";
+  const nivel = levelFor(hero.xp);
+  const siguiente = LEVELS[nivel];
+  const base = LEVELS[nivel - 1].xp;
   return (
     <div className="flex flex-1 flex-col gap-0.5 rounded-xl bg-sea-800/70 px-2.5 py-2 ring-1 ring-sea-700">
       <span className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-wide text-foam/50">
-        {title}
+        <span>
+          {title} <span className="text-amber-300 normal-case">· nv {nivel}</span>
+        </span>
         {/* Potenciadores activos, con los turnos que les quedan. */}
         <span className="flex gap-1.5 normal-case tabular-nums">
           {hero.haste > 0 && (
@@ -164,6 +174,17 @@ function Stats({ title, hero }: { title: string; hero: Omit<Hero, "pos"> }) {
         <span className={dato}>
           <GiTwoCoins className="text-yellow-400" /> {hero.gold}
         </span>
+      </span>
+      {/* Experiencia hacia el siguiente nivel; llena del todo en el último. */}
+      <span className="mt-0.5 h-1 overflow-hidden rounded-full bg-sea-950">
+        <span
+          className="block h-full rounded-full bg-amber-300 transition-all duration-500"
+          style={{
+            width: siguiente
+              ? `${((hero.xp - base) * 100) / (siguiente.xp - base)}%`
+              : "100%",
+          }}
+        />
       </span>
     </div>
   );
@@ -493,7 +514,8 @@ export default function Dungeon({ view, game, onAct, onWait, thinking }: Props) 
       <p className="text-center text-[0.7rem] leading-relaxed text-foam/40">
         <GiWingfoot className="inline text-cyan-300" /> botas: +{HASTE_STEPS} pasos ·{" "}
         <GiMagicShield className="inline text-violet-300" /> amuleto: +{WARD_DEF} defensa (3 turnos
-        cada uno).{" "}
+        cada uno). Matar da experiencia: nivel 2, {LEVELS[1].perk}; nivel 3, {LEVELS[2].perk}; nivel
+        4, {LEVELS[3].perk}.{" "}
         {coop
           ? `Los monstruos que os ven os persiguen y pegan al acabar cada ronda; no abren puertas. Reunid ${game.goal} de oro entre los dos sin que caiga ninguno.`
           : "Los monstruos golpean si acabas el turno a su lado sin un muro por medio. Gana quien más oro tenga… o quien quede en pie."}

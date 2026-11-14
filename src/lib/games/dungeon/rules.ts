@@ -30,18 +30,35 @@ export type Item = "gold" | "potion" | "sword" | "shield" | "chest" | "haste" | 
 
 export const MONSTER: Record<
   MonsterKind,
-  { hp: number; atk: number; gold: number; name: string; speed: number }
+  { hp: number; atk: number; gold: number; name: string; speed: number; xp: number }
 > = {
   // `speed` son los pasos que da al perseguir, en cooperativo: lo pequeño corre.
-  rat: { hp: 2, atk: 1, gold: 1, name: "la rata", speed: 2 },
-  goblin: { hp: 3, atk: 2, gold: 2, name: "el goblin", speed: 2 },
-  skeleton: { hp: 5, atk: 2, gold: 2, name: "el esqueleto", speed: 1 },
+  // `xp` es la experiencia que deja al caer: cuanto más duro, más enseña.
+  rat: { hp: 2, atk: 1, gold: 1, name: "la rata", speed: 2, xp: 1 },
+  goblin: { hp: 3, atk: 2, gold: 2, name: "el goblin", speed: 2, xp: 2 },
+  skeleton: { hp: 5, atk: 2, gold: 2, name: "el esqueleto", speed: 1, xp: 3 },
   // El orco es el único que duele de verdad: sin escudo o sin espada, mejor rodearlo.
-  orc: { hp: 6, atk: 3, gold: 3, name: "el orco", speed: 1 },
+  orc: { hp: 6, atk: 3, gold: 3, name: "el orco", speed: 1, xp: 4 },
 };
 
+/**
+ * Niveles. `xp` es la experiencia acumulada que hace falta para llegar a cada
+ * uno, y la mejora se aplica sola al subir: sin menús en mitad de la partida.
+ * Entre los dos jugadores hay unos 34 puntos en el mapa, así que el nivel 4
+ * es para quien de verdad se ha dedicado a pelear.
+ */
+export const LEVELS: { xp: number; perk: string; atk?: number; def?: number; hp?: number }[] = [
+  { xp: 0, perk: "" },
+  { xp: 3, perk: "+1 de ataque", atk: 1 },
+  { xp: 7, perk: "+3 de vida máxima", hp: 3 },
+  { xp: 12, perk: "+1 de defensa", def: 1 },
+];
+
+/** Nivel (empezando en 1) que corresponde a una experiencia. */
+export const levelFor = (xp: number) => LEVELS.filter((l) => xp >= l.xp).length;
+
 /** Oro que tiene que reunir el equipo en cooperativo. */
-export const TEAM_GOAL = 28;
+export const TEAM_GOAL = 32;
 /** Hasta dónde sigue un monstruo despierto a un héroe, en pasos. */
 export const CHASE = 9;
 
@@ -60,6 +77,9 @@ export type Hero = {
   /** Turnos que le quedan de botas (+pasos) y de amuleto (+defensa). */
   haste: number;
   ward: number;
+  /** Experiencia ganada matando monstruos, y el tope de vida, que sube con el nivel. */
+  xp: number;
+  maxHp: number;
 };
 
 export const stepsOf = (h: Pick<Hero, "haste">) => REACH + (h.haste > 0 ? HASTE_STEPS : 0);

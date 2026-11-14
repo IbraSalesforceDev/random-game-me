@@ -29,6 +29,8 @@ export type LastTurn = {
   shield: boolean;
   haste: boolean;
   ward: boolean;
+  /** Subió a este nivel con la muerte de este turno. */
+  levelUp: number | null;
   /** Abrió alguna puerta por el camino. */
   opened: boolean;
   /** Se topó con el rival a oscuras y tuvo que pararse. */
@@ -193,6 +195,8 @@ export function viewFor(state: DungeonState, side: Side): DungeonView {
       gold: rival.gold,
       haste: rival.haste,
       ward: rival.ward,
+      xp: rival.xp,
+      maxHp: rival.maxHp,
       pos: luz.has(rival.pos) ? rival.pos : null,
     },
     reach,
